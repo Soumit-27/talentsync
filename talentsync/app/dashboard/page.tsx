@@ -86,9 +86,16 @@ const seedJobs = [
   },
 ];
 
-const STAGES = ["Applied", "Review", "Interview", "Hired"];
+const STAGES = ["Applied", "Review", "Interview", "Hired"] as const;
 
-function stageColor(stage) {
+type Stage = (typeof STAGES)[number];
+
+function stageColor(stage: Stage) {
+  if (stage === "Hired") return { bg: T.tealSoft, fg: T.teal };
+  if (stage === "Interview") return { bg: T.amberSoft, fg: "#8a5a10" };
+  if (stage === "Review") return { bg: "#EAEAF5", fg: "#4A4A8A" };
+  return { bg: "#EEF0F2", fg: T.sub };
+}
   if (stage === "Hired") return { bg: T.tealSoft, fg: T.teal };
   if (stage === "Interview") return { bg: T.amberSoft, fg: "#8a5a10" };
   if (stage === "Review") return { bg: "#EAEAF5", fg: "#4A4A8A" };
