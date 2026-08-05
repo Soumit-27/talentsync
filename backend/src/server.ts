@@ -10,9 +10,7 @@ import authRoutes from "./modules/auth/auth.routes";
 import profileRoutes from "./modules/profile/profile.routes";
 import jobRoutes from "./modules/job/job.routes";
 
-console.log("Cloud Name:", process.env.CLOUDINARY_CLOUD_NAME);
-console.log("API Key:", process.env.CLOUDINARY_API_KEY);
-console.log("API Secret:", process.env.CLOUDINARY_API_SECRET);
+
 
 const app = express();
 
