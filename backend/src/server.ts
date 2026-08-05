@@ -1,25 +1,36 @@
-import express from "express";
-import cors from "cors";
 import dotenv from "dotenv";
 
-import authRoutes from "./modules/auth/auth.routes";
-
+// Load environment variables first
 dotenv.config();
+
+import express from "express";
+import cors from "cors";
+
+import authRoutes from "./modules/auth/auth.routes";
+import profileRoutes from "./modules/profile/profile.routes";
+import jobRoutes from "./modules/job/job.routes";
+
+console.log("Cloud Name:", process.env.CLOUDINARY_CLOUD_NAME);
+console.log("API Key:", process.env.CLOUDINARY_API_KEY);
+console.log("API Secret:", process.env.CLOUDINARY_API_SECRET);
 
 const app = express();
 
+// Middlewares
 app.use(cors());
-
 app.use(express.json());
 
+// Routes
 app.get("/", (_, res) => {
   res.send("TalentSync Backend Running 🚀");
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/profile", profileRoutes);
+app.use("/api/jobs", jobRoutes);
 
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });

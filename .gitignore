@@ -1,0 +1,26 @@
+# Node modules
+backend/node_modules/
+talentsync/node_modules/
+
+# Environment files
+backend/.env
+backend/.env.*
+!backend/.env.example
+
+talentsync/.env.local
+talentsync/.env.*
+
+# Build
+backend/dist/
+talentsync/.next/
+talentsync/out/
+
+# Logs
+*.log
+
+# Vercel
+.vercel/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -8,16 +8,64 @@ datasource db {
 }
 
 model User {
+  id String @id @default(uuid())
 
-  id        String   @id @default(uuid())
+  name String
 
-  name      String
+  email String @unique
 
-  email     String   @unique
+  password String
 
-  password  String
+  profileCompleted Boolean @default(false)
 
-  role      UserRole @default(CANDIDATE)
+  profile CandidateProfile?
+
+  role UserRole @default(CANDIDATE)
+
+  // Recruiter can create multiple jobs
+  jobs Job[] @relation("RecruiterJobs")
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+}
+
+model CandidateProfile {
+  id String @id @default(uuid())
+
+  userId String @unique
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  phone String?
+
+  title String?
+
+  about String?
+
+  experience Int?
+
+  currentCompany String?
+
+  currentSalary Float?
+
+  expectedSalary Float?
+
+  noticePeriod String?
+
+  location String?
+
+  preferredLocation String?
+
+  github String?
+
+  linkedin String?
+
+  portfolio String?
+
+  resumeUrl String?
+
+  imageUrl String?
 
   createdAt DateTime @default(now())
 
@@ -28,4 +76,46 @@ enum UserRole {
   CANDIDATE
   RECRUITER
   ADMIN
+}
+
+enum JobType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERNSHIP
+}
+
+enum JobStatus {
+  OPEN
+  CLOSED
+}
+
+model Job {
+  id String @id @default(uuid())
+
+  title String
+
+  description String
+
+  companyName String
+
+  location String
+
+  salary Float?
+
+  experience Int?
+
+  skills String[]
+
+  jobType JobType
+
+  status JobStatus @default(OPEN)
+
+  recruiterId String
+
+  recruiter User @relation("RecruiterJobs", fields: [recruiterId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
 }

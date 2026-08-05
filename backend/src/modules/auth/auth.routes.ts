@@ -1,4 +1,6 @@
 import express from "express";
+import { authenticate } from "../middleware/auth.middleware";
+import { getCurrentUser } from "./auth.controller";
 
 import {
   registerUser,
@@ -15,6 +17,15 @@ router.post(
 router.post(
   "/login",
   loginUser
+);
+
+
+
+
+router.get(
+  "/me",
+  authenticate,
+  getCurrentUser
 );
 
 export default router;
