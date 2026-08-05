@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, ReactNode, CSSProperties, ComponentType } from "react";
 import {
   Briefcase,
   Users,
@@ -38,8 +38,36 @@ const FONTS = (
   `}</style>
 );
 
+// ---------- types ----------
+const STAGES = ["Applied", "Review", "Interview", "Hired"] as const;
+type Stage = (typeof STAGES)[number];
+
+interface Applicant {
+  id: string;
+  name: string;
+  email: string;
+  stage: Stage;
+}
+
+interface Job {
+  id: string;
+  title: string;
+  stack: string;
+  location: string;
+  status: string;
+  applicants: Applicant[];
+}
+
+interface JobFormState {
+  title: string;
+  stack: string;
+  location: string;
+}
+
+type Section = "dashboard" | "candidates" | "interviews" | "settings";
+
 // seed data - swap this out for your real API / DB call
-const seedJobs = [
+const seedJobs: Job[] = [
   {
     id: "j1",
     title: "Frontend Developer",
@@ -86,25 +114,17 @@ const seedJobs = [
   },
 ];
 
-const STAGES = ["Applied", "Review", "Interview", "Hired"] as const;
-
-type Stage = (typeof STAGES)[number];
-
 function stageColor(stage: Stage) {
   if (stage === "Hired") return { bg: T.tealSoft, fg: T.teal };
   if (stage === "Interview") return { bg: T.amberSoft, fg: "#8a5a10" };
   if (stage === "Review") return { bg: "#EAEAF5", fg: "#4A4A8A" };
   return { bg: "#EEF0F2", fg: T.sub };
 }
-  if (stage === "Hired") return { bg: T.tealSoft, fg: T.teal };
-  if (stage === "Interview") return { bg: T.amberSoft, fg: "#8a5a10" };
-  if (stage === "Review") return { bg: "#EAEAF5", fg: "#4A4A8A" };
-  return { bg: "#EEF0F2", fg: T.sub };
-}
 
-function Avatar({ name, tone = T.ink }) {
+function Avatar({ name, tone = T.ink }: { name: string; tone?: string }) {
   const initials = name
     .split(" ")
+    .filter(Boolean)
     .map((w) => w[0])
     .slice(0, 2)
     .join("")
@@ -129,7 +149,7 @@ function Avatar({ name, tone = T.ink }) {
   );
 }
 
-function StagePill({ stage }) {
+function StagePill({ stage }: { stage: Stage }) {
   const c = stageColor(stage);
   return (
     <span
@@ -147,6 +167,17 @@ function StagePill({ stage }) {
   );
 }
 
+type ButtonVariant = "primary" | "accent" | "ghost";
+
+interface ButtonProps {
+  children: ReactNode;
+  onClick?: () => void;
+  variant?: ButtonVariant;
+  icon?: ComponentType<{ size?: number; color?: string }>;
+  style?: CSSProperties;
+  type?: "button" | "submit" | "reset";
+}
+
 function Button({
   children,
   onClick,
@@ -154,8 +185,8 @@ function Button({
   icon: Icon,
   style,
   type = "button",
-}) {
-  const base = {
+}: ButtonProps) {
+  const base: CSSProperties = {
     display: "inline-flex",
     alignItems: "center",
     gap: 8,
@@ -168,7 +199,7 @@ function Button({
     border: "none",
     transition: "transform .1s ease",
   };
-  const variants = {
+  const variants: Record<ButtonVariant, CSSProperties> = {
     primary: { background: T.ink, color: "#fff" },
     accent: { background: T.teal, color: "#fff" },
     ghost: {
@@ -191,7 +222,11 @@ function Button({
   );
 }
 
-function Field({ label, ...props }) {
+interface FieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  label: string;
+}
+
+function Field({ label, ...props }: FieldProps) {
   return (
     <label style={{ display: "block", marginBottom: 16 }}>
       <span
@@ -222,7 +257,14 @@ function Field({ label, ...props }) {
   );
 }
 
-function StatCard({ label, value, icon: Icon, tone }) {
+interface StatCardProps {
+  label: string;
+  value: number;
+  icon: ComponentType<{ size?: number; color?: string }>;
+  tone: string;
+}
+
+function StatCard({ label, value, icon: Icon, tone }: StatCardProps) {
   return (
     <div
       style={{
@@ -259,6 +301,11 @@ function StatCard({ label, value, icon: Icon, tone }) {
   );
 }
 
+interface RecruiterDashboardProps {
+  user?: { name: string };
+  onLogout?: () => void;
+}
+
 // ---------- main export ----------
 // Drop this into your existing dashboard route. Pass the logged-in
 // recruiter's name/email as `user` (from your own auth/session), e.g:
@@ -266,12 +313,16 @@ function StatCard({ label, value, icon: Icon, tone }) {
 export default function RecruiterDashboard({
   user = { name: "Sonali" },
   onLogout,
-}) {
-  const [jobs, setJobs] = useState(seedJobs);
+}: RecruiterDashboardProps) {
+  const [jobs, setJobs] = useState<Job[]>(seedJobs);
   const [showForm, setShowForm] = useState(false);
-  const [openJob, setOpenJob] = useState(null);
-  const [form, setForm] = useState({ title: "", stack: "", location: "" });
-  const [section, setSection] = useState("dashboard");
+  const [openJob, setOpenJob] = useState<string | null>(null);
+  const [form, setForm] = useState<JobFormState>({
+    title: "",
+    stack: "",
+    location: "",
+  });
+  const [section, setSection] = useState<Section>("dashboard");
   const [loginUser, setLoginUser] = useState<
     GetLoginUserResponse["user"] | null
   >(null);
@@ -281,7 +332,6 @@ export default function RecruiterDashboard({
 
     onSuccess: (data) => {
       console.log(data);
-
       setLoginUser(data.user);
     },
 
@@ -304,10 +354,10 @@ export default function RecruiterDashboard({
     0,
   );
 
-  function createJob(e) {
+  function createJob(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!form.title.trim()) return;
-    const job = {
+    const job: Job = {
       id: "j" + Date.now(),
       title: form.title,
       stack: form.stack || "Not specified",
@@ -320,7 +370,7 @@ export default function RecruiterDashboard({
     setShowForm(false);
   }
 
-  function advanceStage(jobId, appId) {
+  function advanceStage(jobId: string, appId: string) {
     setJobs(
       jobs.map((j) => {
         if (j.id !== jobId) return j;
@@ -337,57 +387,59 @@ export default function RecruiterDashboard({
     );
   }
 
-  const Shell = ({ children }) => (
-    <div style={{ minHeight: "100vh", background: T.paper }} className="ts-app">
-      {FONTS}
-      <header
-        style={{
-          height: 64,
-          background: T.card,
-          borderBottom: `1px solid ${T.line}`,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "0 32px",
-        }}
-      >
-        <h1
-          className="ts-display"
-          style={{ fontSize: 22, fontWeight: 700, color: T.ink, margin: 0 }}
+  function Shell({ children }: { children: ReactNode }) {
+    return (
+      <div style={{ minHeight: "100vh", background: T.paper }} className="ts-app">
+        {FONTS}
+        <header
+          style={{
+            height: 64,
+            background: T.card,
+            borderBottom: `1px solid ${T.line}`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0 32px",
+          }}
         >
-          TalentSync
-        </h1>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <div style={{ textAlign: "right" }}>
-            <p
-              style={{ fontWeight: 600, color: T.ink, margin: 0, fontSize: 14 }}
-            >
-              {loginUser?.name}
-            </p>
-            <p style={{ fontSize: 12, color: T.sub, margin: 0 }}>Recruiter</p>
+          <h1
+            className="ts-display"
+            style={{ fontSize: 22, fontWeight: 700, color: T.ink, margin: 0 }}
+          >
+            TalentSync
+          </h1>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <div style={{ textAlign: "right" }}>
+              <p
+                style={{ fontWeight: 600, color: T.ink, margin: 0, fontSize: 14 }}
+              >
+                {loginUser?.name}
+              </p>
+              <p style={{ fontSize: 12, color: T.sub, margin: 0 }}>Recruiter</p>
+            </div>
+            <Avatar name={loginUser?.name || ""} tone={T.teal} />
+            {onLogout && (
+              <button
+                onClick={onLogout}
+                title="Log out"
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: T.sub,
+                  cursor: "pointer",
+                }}
+              >
+                <LogOut size={18} />
+              </button>
+            )}
           </div>
-          <Avatar name={loginUser?.name || ""} tone={T.teal} />
-          {onLogout && (
-            <button
-              onClick={onLogout}
-              title="Log out"
-              style={{
-                background: "none",
-                border: "none",
-                color: T.sub,
-                cursor: "pointer",
-              }}
-            >
-              <LogOut size={18} />
-            </button>
-          )}
-        </div>
-      </header>
-    
-    </div>
-  );
+        </header>
+        <div style={{ padding: 32 }}>{children}</div>
+      </div>
+    );
+  }
 
-  function ComingSoon({ label }) {
+  function ComingSoon({ label }: { label: string }) {
     return (
       <div
         style={{
@@ -432,6 +484,13 @@ export default function RecruiterDashboard({
 
   if (openJob) {
     const job = jobs.find((j) => j.id === openJob);
+    if (!job) {
+      return (
+        <Shell>
+          <ComingSoon label="Job not found" />
+        </Shell>
+      );
+    }
     return (
       <Shell>
         <button
