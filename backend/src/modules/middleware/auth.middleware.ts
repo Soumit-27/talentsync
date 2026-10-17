@@ -7,7 +7,6 @@ interface JwtPayload {
 }
 
 export interface AuthRequest extends Request {
-  user?: JwtPayload;
   file?: Express.Multer.File;
 }
 
@@ -33,7 +32,10 @@ export const authenticate = (
       process.env.JWT_SECRET as string
     ) as JwtPayload;
 
-    req.user = decoded;
+    req.user = {
+      id: decoded.id,
+      role: decoded.role as "CANDIDATE" | "RECRUITER" | "ADMIN",
+    };
 
     next();
   } catch (error) {

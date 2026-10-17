@@ -9,8 +9,9 @@ import cors from "cors";
 import authRoutes from "./modules/auth/auth.routes";
 import profileRoutes from "./modules/profile/profile.routes";
 import jobRoutes from "./modules/job/job.routes";
-
-
+import applicationRoutes from "./modules/applications/application.routes";
+import interviewRoutes from "./modules/interviews/interview.routes"
+import companyRoutes from "./modules/company/company.routes"
 
 const app = express();
 
@@ -26,6 +27,9 @@ app.get("/", (_, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/jobs", jobRoutes);
+app.use("/api/applications", applicationRoutes)
+app.use("/api/interviews",interviewRoutes);
+app.use("/api/companies", companyRoutes);
 
 const PORT = process.env.PORT || 5000;
 

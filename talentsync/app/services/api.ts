@@ -8,6 +8,17 @@ const api = axios.create({
 });
 
 // Attach token to every request
+// api.interceptors.request.use((config) => {
+//   if (typeof window !== "undefined") {
+//     const token = localStorage.getItem("token");
+
+//     if (token) {
+//       config.headers.Authorization = `Bearer ${token}`;
+//     }
+//   }
+
+//   return config;
+// });
 api.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
     const token = localStorage.getItem("token");
@@ -15,6 +26,10 @@ api.interceptors.request.use((config) => {
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+  }
+
+  if (config.data instanceof FormData) {
+    delete config.headers["Content-Type"];
   }
 
   return config;
@@ -29,7 +44,7 @@ export const getRequest = async <T>(url: string): Promise<T> => {
 // POST
 export const postRequest = async <T>(
   url: string,
-  data?: unknown
+  data?: unknown,
 ): Promise<T> => {
   const response = await api.post<T>(url, data);
   return response.data;
@@ -38,7 +53,7 @@ export const postRequest = async <T>(
 // PUT
 export const putRequest = async <T>(
   url: string,
-  data?: unknown
+  data?: unknown,
 ): Promise<T> => {
   const response = await api.put<T>(url, data);
   return response.data;

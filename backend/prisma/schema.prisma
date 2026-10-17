@@ -25,6 +25,8 @@ model User {
   // Recruiter can create multiple jobs
   jobs Job[] @relation("RecruiterJobs")
 
+  company Company?
+
   createdAt DateTime @default(now())
 
   updatedAt DateTime @updatedAt
@@ -69,7 +71,8 @@ model CandidateProfile {
 
   createdAt DateTime @default(now())
 
-  updatedAt DateTime @updatedAt
+  updatedAt    DateTime         @updatedAt
+  applications JobApplication[]
 }
 
 enum UserRole {
@@ -117,5 +120,79 @@ model Job {
 
   createdAt DateTime @default(now())
 
+  updatedAt    DateTime         @updatedAt
+  applications JobApplication[]
+}
+
+enum ApplicationStatus {
+  APPLIED
+  SCREENING
+  SHORTLISTED
+  INTERVIEW
+  REJECTED
+  HIRED
+}
+
+model JobApplication {
+  id String @id @default(uuid())
+
+  candidateId String
+  jobId       String
+
+  status ApplicationStatus @default(APPLIED)
+
+  appliedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  candidate CandidateProfile @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  job       Job              @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([candidateId, jobId])
+
+  interview Interview?
+}
+
+
+
+enum InterviewStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+
+model Interview {
+  id String @id @default(uuid())
+
+  applicationId String @unique
+
+  scheduledAt DateTime
+
+  meetingLink String?
+
+  notes String?
+
+  status InterviewStatus @default(SCHEDULED)
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  application JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+}
+
+
+
+model Company {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  website     String?
+  location    String?
+  recruiterId String   @unique
+
+  recruiter User @relation(fields: [recruiterId], references: [id])
+
+  createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

@@ -43,6 +43,13 @@ const menuItems = [
 export default function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
+  // Don't show recruiter sidebar on candidate pages
+  if (
+    pathname === "/candidateDashboard" ||
+    pathname.startsWith("/candidate/profile")
+  ) {
+    return null;
+  }
 
   const [collapsed, setCollapsed] = useState(false);
 
@@ -55,20 +62,14 @@ export default function Sidebar() {
       {/* Logo */}
       <div className="h-16 flex items-center justify-between px-4 border-b">
         {!collapsed && (
-          <h1 className="text-xl font-bold text-blue-600">
-            TalentSync
-          </h1>
+          <h1 className="text-xl font-bold text-blue-600">TalentSync</h1>
         )}
 
         <button
           onClick={() => setCollapsed(!collapsed)}
           className="p-2 rounded-lg hover:bg-slate-100"
         >
-          {collapsed ? (
-            <ChevronsRight size={18} />
-          ) : (
-            <ChevronsLeft size={18} />
-          )}
+          {collapsed ? <ChevronsRight size={18} /> : <ChevronsLeft size={18} />}
         </button>
       </div>
 
@@ -94,11 +95,7 @@ export default function Sidebar() {
             >
               <Icon size={20} />
 
-              {!collapsed && (
-                <span className="font-medium">
-                  {item.label}
-                </span>
-              )}
+              {!collapsed && <span className="font-medium">{item.label}</span>}
             </button>
           );
         })}

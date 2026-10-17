@@ -14,12 +14,23 @@ export const createProfile = async (userId: string, data: any) => {
     throw new Error("Profile already exists");
   }
 
-  return prisma.candidateProfile.create({
+  const profile = await prisma.candidateProfile.create({
     data: {
       userId,
       ...data,
     },
   });
+
+  await prisma.user.update({
+    where: {
+      id: userId,
+    },
+    data: {
+      profileCompleted: true,
+    },
+  });
+
+  return profile;
 };
 
 export const getProfile = async (userId: string) => {

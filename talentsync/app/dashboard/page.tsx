@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, useEffect, ReactNode, CSSProperties, ComponentType } from "react";
+import {
+  useState,
+  useEffect,
+  ReactNode,
+  CSSProperties,
+  ComponentType,
+} from "react";
 import {
   Briefcase,
   Users,
@@ -14,6 +20,8 @@ import {
 } from "lucide-react";
 import { getLoginUser, GetLoginUserResponse } from "../services/auth";
 import { useMutation } from "@tanstack/react-query";
+import ProtectedRoute from "../components/ProtectedRoute";
+import { useRouter } from "next/navigation";
 
 // ---------- design tokens ----------
 const T = {
@@ -307,9 +315,6 @@ interface RecruiterDashboardProps {
 }
 
 // ---------- main export ----------
-// Drop this into your existing dashboard route. Pass the logged-in
-// recruiter's name/email as `user` (from your own auth/session), e.g:
-//   <RecruiterDashboard user={{ name: session.user.name }} onLogout={signOut} />
 export default function RecruiterDashboard({
   user = { name: "Sonali" },
   onLogout,
@@ -326,6 +331,8 @@ export default function RecruiterDashboard({
   const [loginUser, setLoginUser] = useState<
     GetLoginUserResponse["user"] | null
   >(null);
+  const [showProfile, setShowProfile] = useState(false);
+  const router = useRouter();
 
   const getUserMutation = useMutation({
     mutationFn: getLoginUser,
@@ -389,7 +396,10 @@ export default function RecruiterDashboard({
 
   function Shell({ children }: { children: ReactNode }) {
     return (
-      <div style={{ minHeight: "100vh", background: T.paper }} className="ts-app">
+      <div
+        style={{ minHeight: "100vh", background: T.paper }}
+        className="ts-app"
+      >
         {FONTS}
         <header
           style={{
@@ -408,29 +418,143 @@ export default function RecruiterDashboard({
           >
             TalentSync
           </h1>
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <div style={{ textAlign: "right" }}>
-              <p
-                style={{ fontWeight: 600, color: T.ink, margin: 0, fontSize: 14 }}
-              >
-                {loginUser?.name}
-              </p>
-              <p style={{ fontSize: 12, color: T.sub, margin: 0 }}>Recruiter</p>
-            </div>
-            <Avatar name={loginUser?.name || ""} tone={T.teal} />
-            {onLogout && (
-              <button
-                onClick={onLogout}
-                title="Log out"
+          <div style={{ position: "relative" }}>
+            {/* Profile Button */}
+            <button
+              onClick={() => setShowProfile((prev) => !prev)}
+              style={{
+                background: "none",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+              }}
+            >
+              <div style={{ textAlign: "right" }}>
+                <p
+                  style={{
+                    fontWeight: 600,
+                    color: T.ink,
+                    margin: 0,
+                    fontSize: 14,
+                  }}
+                >
+                  {loginUser?.name}
+                </p>
+
+                <p
+                  style={{
+                    fontSize: 12,
+                    color: T.sub,
+                    margin: 0,
+                  }}
+                >
+                  Recruiter
+                </p>
+              </div>
+
+              <Avatar name={loginUser?.name || ""} tone={T.teal} />
+            </button>
+
+            {/* Profile Dropdown */}
+            {showProfile && (
+              <div
                 style={{
-                  background: "none",
-                  border: "none",
-                  color: T.sub,
-                  cursor: "pointer",
+                  position: "absolute",
+                  top: 52,
+                  right: 0,
+                  width: 220,
+                  background: T.card,
+                  border: `1px solid ${T.line}`,
+                  borderRadius: 14,
+                  padding: 8,
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.12)",
+                  zIndex: 100,
                 }}
               >
-                <LogOut size={18} />
-              </button>
+                {/* User Info */}
+                <div
+                  style={{
+                    padding: "12px",
+                    borderBottom: `1px solid ${T.line}`,
+                    marginBottom: 6,
+                  }}
+                >
+                  <p
+                    style={{
+                      margin: 0,
+                      fontWeight: 600,
+                      color: T.ink,
+                      fontSize: 14,
+                    }}
+                  >
+                    {loginUser?.name}
+                  </p>
+
+                  <p
+                    style={{
+                      margin: "4px 0 0",
+                      color: T.sub,
+                      fontSize: 12,
+                    }}
+                  >
+                    {loginUser?.email}
+                  </p>
+                </div>
+
+                {/* Profile */}
+                <button
+                  onClick={() => {
+                    setShowProfile(false);
+                    setSection("settings");
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "11px 12px",
+                    border: "none",
+                    background: "transparent",
+                    textAlign: "left",
+                    borderRadius: 8,
+                    cursor: "pointer",
+                    color: T.ink,
+                    fontSize: 14,
+                  }}
+                >
+                  👤 Profile
+                </button>
+
+                {/* Logout */}
+
+                <button
+                  onClick={() => {
+                    localStorage.clear();
+                    sessionStorage.clear();
+
+                    setShowProfile(false);
+
+                    router.push("/auth/login");
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "11px 12px",
+                    border: "none",
+                    background: "transparent",
+                    textAlign: "left",
+                    borderRadius: 8,
+                    cursor: "pointer",
+                    color: T.coral,
+                    fontSize: 14,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                >
+                  <LogOut size={16} />
+                  Logout
+                </button>
+              </div>
             )}
           </div>
         </header>
@@ -463,324 +587,362 @@ export default function RecruiterDashboard({
     );
   }
 
-  if (section === "candidates")
+  // Loading state while authentication is being checked
+  if (getUserMutation.isPending) {
     return (
-      <Shell>
-        <ComingSoon label="Candidates" />
-      </Shell>
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <p style={{ color: T.sub, fontSize: 18 }}>Loading dashboard…</p>
+      </div>
     );
-  if (section === "interviews")
-    return (
-      <Shell>
-        <ComingSoon label="Interviews" />
-      </Shell>
-    );
-  if (section === "settings")
-    return (
-      <Shell>
-        <ComingSoon label="Settings" />
-      </Shell>
-    );
+  }
 
-  if (openJob) {
-    const job = jobs.find((j) => j.id === openJob);
-    if (!job) {
-      return (
+  // Wrap the entire dashboard UI with ProtectedRoute
+  return (
+    <ProtectedRoute>
+      {section === "candidates" ? (
         <Shell>
-          <ComingSoon label="Job not found" />
+          <ComingSoon label="Candidates" />
         </Shell>
-      );
-    }
-    return (
-      <Shell>
-        <button
-          onClick={() => setOpenJob(null)}
-          style={{
-            background: "none",
-            border: "none",
-            color: T.sub,
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            cursor: "pointer",
-            marginBottom: 20,
-            fontSize: 14,
-          }}
-        >
-          <ArrowLeft size={16} /> Back to dashboard
-        </button>
-        <h2
-          className="ts-display"
-          style={{ fontSize: 30, color: T.ink, margin: "0 0 4px" }}
-        >
-          {job.title}
-        </h2>
-        <p style={{ color: T.sub, marginBottom: 24 }}>
-          {job.stack} - {job.location}
-        </p>
-        <div
-          style={{
-            background: T.card,
-            border: `1px solid ${T.line}`,
-            borderRadius: 16,
-            padding: 8,
-          }}
-        >
-          {job.applicants.length === 0 && (
-            <p style={{ color: T.sub, padding: 20, textAlign: "center" }}>
-              No applicants yet for this role.
-            </p>
-          )}
-          {job.applicants.map((a, i) => (
-            <div
-              key={a.id}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "16px 16px",
-                borderBottom:
-                  i < job.applicants.length - 1
-                    ? `1px solid ${T.line}`
-                    : "none",
-              }}
+      ) : section === "interviews" ? (
+        <Shell>
+          <ComingSoon label="Interviews" />
+        </Shell>
+      ) : section === "settings" ? (
+        <Shell>
+          <ComingSoon label="Settings" />
+        </Shell>
+      ) : openJob ? (
+        (() => {
+          const job = jobs.find((j) => j.id === openJob);
+          if (!job) {
+            return (
+              <Shell>
+                <ComingSoon label="Job not found" />
+              </Shell>
+            );
+          }
+          return (
+            <Shell>
+              <button
+                onClick={() => setOpenJob(null)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: T.sub,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  cursor: "pointer",
+                  marginBottom: 20,
+                  fontSize: 14,
+                }}
+              >
+                <ArrowLeft size={16} /> Back to dashboard
+              </button>
+              <h2
+                className="ts-display"
+                style={{ fontSize: 30, color: T.ink, margin: "0 0 4px" }}
+              >
+                {job.title}
+              </h2>
+              <p style={{ color: T.sub, marginBottom: 24 }}>
+                {job.stack} - {job.location}
+              </p>
+              <div
+                style={{
+                  background: T.card,
+                  border: `1px solid ${T.line}`,
+                  borderRadius: 16,
+                  padding: 8,
+                }}
+              >
+                {job.applicants.length === 0 && (
+                  <p style={{ color: T.sub, padding: 20, textAlign: "center" }}>
+                    No applicants yet for this role.
+                  </p>
+                )}
+                {job.applicants.map((a, i) => (
+                  <div
+                    key={a.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "16px 16px",
+                      borderBottom:
+                        i < job.applicants.length - 1
+                          ? `1px solid ${T.line}`
+                          : "none",
+                    }}
+                  >
+                    <div
+                      style={{ display: "flex", alignItems: "center", gap: 12 }}
+                    >
+                      <Avatar name={a.name} />
+                      <div>
+                        <p
+                          style={{
+                            margin: 0,
+                            fontWeight: 600,
+                            color: T.ink,
+                            fontSize: 14,
+                          }}
+                        >
+                          {a.name}
+                        </p>
+                        <p style={{ margin: 0, color: T.sub, fontSize: 13 }}>
+                          {a.email}
+                        </p>
+                      </div>
+                    </div>
+                    <div
+                      style={{ display: "flex", alignItems: "center", gap: 12 }}
+                    >
+                      <StagePill stage={a.stage} />
+                      {a.stage !== "Hired" && (
+                        <Button
+                          variant="ghost"
+                          onClick={() => advanceStage(job.id, a.id)}
+                        >
+                          Move to {STAGES[STAGES.indexOf(a.stage) + 1]}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Shell>
+          );
+        })()
+      ) : (
+        <Shell>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-end",
+              marginBottom: 28,
+            }}
+          >
+            <div>
+              <h2
+                className="ts-display"
+                style={{
+                  fontSize: 32,
+                  fontWeight: 700,
+                  color: T.ink,
+                  margin: 0,
+                }}
+              >
+                Dashboard
+              </h2>
+              <p style={{ color: T.sub, marginTop: 6 }}>
+                Welcome back, {loginUser?.name?.split(" ")[0]}
+              </p>
+            </div>
+            <Button
+              variant="accent"
+              icon={Plus}
+              onClick={() => setShowForm(true)}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <Avatar name={a.name} />
+              Post a job
+            </Button>
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(4, 1fr)",
+              gap: 16,
+              marginBottom: 28,
+            }}
+          >
+            <StatCard
+              label="Total jobs"
+              value={jobs.length}
+              icon={Briefcase}
+              tone={T.teal}
+            />
+            <StatCard
+              label="Applicants"
+              value={totalApplicants}
+              icon={Users}
+              tone={T.amber}
+            />
+            <StatCard
+              label="Interviews"
+              value={interviews}
+              icon={CalendarCheck}
+              tone={T.coral}
+            />
+            <StatCard
+              label="Hired"
+              value={hired}
+              icon={UserCheck}
+              tone={T.teal}
+            />
+          </div>
+
+          <div
+            style={{
+              background: T.card,
+              border: `1px solid ${T.line}`,
+              borderRadius: 16,
+              padding: 24,
+            }}
+          >
+            <h3
+              className="ts-display"
+              style={{ fontSize: 19, margin: "0 0 16px", color: T.ink }}
+            >
+              Job openings
+            </h3>
+            {jobs.map((job, i) => (
+              <div
+                key={job.id}
+                onClick={() => setOpenJob(job.id)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "16px 4px",
+                  borderBottom:
+                    i < jobs.length - 1 ? `1px solid ${T.line}` : "none",
+                  cursor: "pointer",
+                }}
+              >
                 <div>
-                  <p
+                  <h4
                     style={{
                       margin: 0,
                       fontWeight: 600,
                       color: T.ink,
-                      fontSize: 14,
+                      fontSize: 15,
                     }}
                   >
-                    {a.name}
-                  </p>
-                  <p style={{ margin: 0, color: T.sub, fontSize: 13 }}>
-                    {a.email}
+                    {job.title}
+                  </h4>
+                  <p style={{ margin: "4px 0 0", color: T.sub, fontSize: 13 }}>
+                    {job.stack} - {job.location}
                   </p>
                 </div>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <StagePill stage={a.stage} />
-                {a.stage !== "Hired" && (
-                  <Button
-                    variant="ghost"
-                    onClick={() => advanceStage(job.id, a.id)}
+                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                  <span style={{ fontSize: 13, color: T.sub }}>
+                    {job.applicants.length} applicant
+                    {job.applicants.length === 1 ? "" : "s"}
+                  </span>
+                  <span
+                    style={{
+                      background:
+                        job.status === "Active" ? T.tealSoft : T.amberSoft,
+                      color: job.status === "Active" ? T.teal : "#8a5a10",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      padding: "4px 12px",
+                      borderRadius: 999,
+                    }}
                   >
-                    Move to {STAGES[STAGES.indexOf(a.stage) + 1]}
-                  </Button>
-                )}
+                    {job.status}
+                  </span>
+                  <ChevronRight size={16} color={T.sub} />
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </Shell>
-    );
-  }
-
-  return (
-    <Shell>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-end",
-          marginBottom: 28,
-        }}
-      >
-        <div>
-          <h2
-            className="ts-display"
-            style={{ fontSize: 32, fontWeight: 700, color: T.ink, margin: 0 }}
-          >
-            Dashboard
-          </h2>
-          <p style={{ color: T.sub, marginTop: 6 }}>
-            Welcome back, {loginUser?.name?.split(" ")[0]}
-          </p>
-        </div>
-        <Button variant="accent" icon={Plus} onClick={() => setShowForm(true)}>
-          Post a job
-        </Button>
-      </div>
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 16,
-          marginBottom: 28,
-        }}
-      >
-        <StatCard
-          label="Total jobs"
-          value={jobs.length}
-          icon={Briefcase}
-          tone={T.teal}
-        />
-        <StatCard
-          label="Applicants"
-          value={totalApplicants}
-          icon={Users}
-          tone={T.amber}
-        />
-        <StatCard
-          label="Interviews"
-          value={interviews}
-          icon={CalendarCheck}
-          tone={T.coral}
-        />
-        <StatCard label="Hired" value={hired} icon={UserCheck} tone={T.teal} />
-      </div>
-
-      <div
-        style={{
-          background: T.card,
-          border: `1px solid ${T.line}`,
-          borderRadius: 16,
-          padding: 24,
-        }}
-      >
-        <h3
-          className="ts-display"
-          style={{ fontSize: 19, margin: "0 0 16px", color: T.ink }}
-        >
-          Job openings
-        </h3>
-        {jobs.map((job, i) => (
-          <div
-            key={job.id}
-            onClick={() => setOpenJob(job.id)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "16px 4px",
-              borderBottom:
-                i < jobs.length - 1 ? `1px solid ${T.line}` : "none",
-              cursor: "pointer",
-            }}
-          >
-            <div>
-              <h4
-                style={{
-                  margin: 0,
-                  fontWeight: 600,
-                  color: T.ink,
-                  fontSize: 15,
-                }}
-              >
-                {job.title}
-              </h4>
-              <p style={{ margin: "4px 0 0", color: T.sub, fontSize: 13 }}>
-                {job.stack} - {job.location}
-              </p>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-              <span style={{ fontSize: 13, color: T.sub }}>
-                {job.applicants.length} applicant
-                {job.applicants.length === 1 ? "" : "s"}
-              </span>
-              <span
-                style={{
-                  background:
-                    job.status === "Active" ? T.tealSoft : T.amberSoft,
-                  color: job.status === "Active" ? T.teal : "#8a5a10",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  padding: "4px 12px",
-                  borderRadius: 999,
-                }}
-              >
-                {job.status}
-              </span>
-              <ChevronRight size={16} color={T.sub} />
-            </div>
+            ))}
           </div>
-        ))}
-      </div>
 
-      {showForm && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(22,33,61,0.45)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 50,
-          }}
-        >
-          <div
-            style={{
-              background: T.card,
-              borderRadius: 18,
-              padding: 28,
-              width: 420,
-              maxWidth: "90vw",
-            }}
-          >
+          {showForm && (
             <div
               style={{
+                position: "fixed",
+                inset: 0,
+                background: "rgba(22,33,61,0.45)",
                 display: "flex",
-                justifyContent: "space-between",
                 alignItems: "center",
-                marginBottom: 18,
+                justifyContent: "center",
+                zIndex: 50,
               }}
             >
-              <h3
-                className="ts-display"
-                style={{ margin: 0, fontSize: 20, color: T.ink }}
-              >
-                Post a job
-              </h3>
-              <button
-                onClick={() => setShowForm(false)}
+              <div
                 style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  color: T.sub,
+                  background: T.card,
+                  borderRadius: 18,
+                  padding: 28,
+                  width: 420,
+                  maxWidth: "90vw",
                 }}
               >
-                <X size={20} />
-              </button>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: 18,
+                  }}
+                >
+                  <h3
+                    className="ts-display"
+                    style={{ margin: 0, fontSize: 20, color: T.ink }}
+                  >
+                    Post a job
+                  </h3>
+                  <button
+                    onClick={() => setShowForm(false)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      color: T.sub,
+                    }}
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+                <form onSubmit={createJob}>
+                  <Field
+                    label="Job title"
+                    placeholder="e.g. UI Designer"
+                    value={form.title}
+                    onChange={(e) =>
+                      setForm({ ...form, title: e.target.value })
+                    }
+                    required
+                  />
+                  <Field
+                    label="Skills / stack"
+                    placeholder="e.g. Figma - Design systems"
+                    value={form.stack}
+                    onChange={(e) =>
+                      setForm({ ...form, stack: e.target.value })
+                    }
+                  />
+                  <Field
+                    label="Location"
+                    placeholder="e.g. Mumbai (Hybrid)"
+                    value={form.location}
+                    onChange={(e) =>
+                      setForm({ ...form, location: e.target.value })
+                    }
+                  />
+                  <Button
+                    type="submit"
+                    variant="accent"
+                    style={{ width: "100%", marginTop: 4 }}
+                  >
+                    Publish job
+                  </Button>
+                </form>
+              </div>
             </div>
-            <form onSubmit={createJob}>
-              <Field
-                label="Job title"
-                placeholder="e.g. UI Designer"
-                value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
-                required
-              />
-              <Field
-                label="Skills / stack"
-                placeholder="e.g. Figma - Design systems"
-                value={form.stack}
-                onChange={(e) => setForm({ ...form, stack: e.target.value })}
-              />
-              <Field
-                label="Location"
-                placeholder="e.g. Mumbai (Hybrid)"
-                value={form.location}
-                onChange={(e) => setForm({ ...form, location: e.target.value })}
-              />
-              <Button
-                type="submit"
-                variant="accent"
-                style={{ width: "100%", marginTop: 4 }}
-              >
-                Publish job
-              </Button>
-            </form>
-          </div>
-        </div>
+          )}
+        </Shell>
       )}
-    </Shell>
+    </ProtectedRoute>
   );
 }

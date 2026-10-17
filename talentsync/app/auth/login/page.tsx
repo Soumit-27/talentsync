@@ -20,9 +20,11 @@ export default function LoginPage() {
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
 
-      router.push(
-        data.user.role === "CANDIDATE" ? "/candidate/profile/" : "/dashboard",
-      );
+      if (data.user.role === "CANDIDATE") {
+        router.push("/candidate/profile");
+      } else {
+        router.push("/dashboard");
+      }
     },
 
     onError: (error) => {
@@ -286,7 +288,10 @@ export default function LoginPage() {
               style={{ animationDelay: "460ms" }}
             >
               Don't have an account?{" "}
-              <span className="text-amber-600 font-semibold cursor-pointer hover:text-amber-700 transition-colors">
+              <span
+                onClick={() => router.push("/auth/register")}
+                className="text-amber-600 font-semibold cursor-pointer hover:text-amber-700 transition-colors"
+              >
                 Register
               </span>
             </p>
