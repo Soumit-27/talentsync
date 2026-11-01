@@ -1,9 +1,8 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 interface CreateUserInput {
-
   name: string;
 
   email: string;
@@ -13,26 +12,18 @@ interface CreateUserInput {
   role: "CANDIDATE" | "RECRUITER";
 }
 
-export const findUserByEmail = async (
-  email: string
-) => {
-
+export const findUserByEmail = async (email: string) => {
   return prisma.user.findUnique({
     where: {
-      email
-    }
+      email,
+    },
   });
-
 };
 
-export const createUser = async (
-  data: CreateUserInput
-) => {
-
+export const createUser = async (data: CreateUserInput) => {
   return prisma.user.create({
-    data
+    data,
   });
-
 };
 
 export const findUserById = async (id: string) => {
@@ -51,11 +42,10 @@ export const findUserById = async (id: string) => {
   });
 };
 
-
 export const createResetToken = async (
   userId: string,
   tokenHash: string,
-  expiresAt: Date
+  expiresAt: Date,
 ) => {
   return prisma.passwordResetToken.create({
     data: {
@@ -66,29 +56,23 @@ export const createResetToken = async (
   });
 };
 
-export const findResetToken = async (
-  tokenHash: string
-) => {
+export const findResetToken = async (tokenHash: string) => {
   return prisma.passwordResetToken.findUnique({
     where: { tokenHash },
   });
 };
 
-export const deleteResetTokens = async (
-  userId: string
-) => {
+export const deleteResetTokens = async (userId: string) => {
   return prisma.passwordResetToken.deleteMany({
     where: { userId },
   });
 };
 
-
-
 export const resetPasswordByToken = async (
   tokenHash: string,
-  hashedPassword: string
+  hashedPassword: string,
 ) => {
-  return prisma.$transaction(async (tx) => {
+  return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const resetToken = await tx.passwordResetToken.findUnique({
       where: { tokenHash },
     });
