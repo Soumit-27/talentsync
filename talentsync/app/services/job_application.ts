@@ -20,6 +20,7 @@ export interface AppliedJob {
   updatedAt: string;
 }
 
+
 export interface CandidateProfile {
   id: string;
   userId: string;
@@ -38,7 +39,14 @@ export interface CandidateProfile {
   portfolio?: string | null;
   resumeUrl?: string | null;
   imageUrl?: string | null;
+
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+  };
 }
+
 
 export interface Application {
   id: string;

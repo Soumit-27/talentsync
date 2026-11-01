@@ -10,7 +10,7 @@ export const uploadToCloudinary = (
     const stream = cloudinary.uploader.upload_stream(
       {
         folder,
-        public_id: publicId,
+        public_id: `${publicId}.pdf`,
         resource_type: "raw",
         overwrite: true,
       },

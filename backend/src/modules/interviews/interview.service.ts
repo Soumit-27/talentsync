@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -85,7 +85,7 @@ export const createInterview = async (
   // Transaction
   const interview =
     await prisma.$transaction(
-      async (tx) => {
+      async (tx: Prisma.TransactionClient) => {
         // Update application status
         await tx.jobApplication.update({
           where: {

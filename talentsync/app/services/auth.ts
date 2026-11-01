@@ -63,3 +63,39 @@ export const registerUser = (
 export const getLoginUser = (): Promise<GetLoginUserResponse> => {
   return getRequest<GetLoginUserResponse>("/api/auth/me");
 };
+
+
+export interface ForgotPasswordPayload {
+  email: string;
+}
+
+export interface ForgotPasswordResponse {
+  success: boolean;
+  message: string;
+}
+
+
+
+export const resetPasswordLink = (
+  data: ForgotPasswordPayload
+): Promise<ForgotPasswordResponse> => {
+  return postRequest<ForgotPasswordResponse>(
+    "/api/auth/forgot-password",
+    data
+  );
+};
+
+export interface ResetPasswordPayload {
+  token: string;
+  password: string;
+  confirmPassword: string;
+}
+
+export const resetPassword = (
+  data: ResetPasswordPayload
+): Promise<ForgotPasswordResponse> => {
+  return postRequest<ForgotPasswordResponse>(
+    "/api/auth/reset-password",
+    data
+  );
+};

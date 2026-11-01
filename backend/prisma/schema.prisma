@@ -25,11 +25,27 @@ model User {
   // Recruiter can create multiple jobs
   jobs Job[] @relation("RecruiterJobs")
 
+  passwordResetTokens PasswordResetToken[]
+
   company Company?
 
   createdAt DateTime @default(now())
 
   updatedAt DateTime @updatedAt
+}
+
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  tokenHash String    @unique
+  userId    String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model CandidateProfile {
