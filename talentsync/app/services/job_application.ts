@@ -20,7 +20,6 @@ export interface AppliedJob {
   updatedAt: string;
 }
 
-
 export interface CandidateProfile {
   id: string;
   userId: string;
@@ -40,13 +39,16 @@ export interface CandidateProfile {
   resumeUrl?: string | null;
   imageUrl?: string | null;
 
+    createdAt: string;
+  updatedAt: string;
+
   user?: {
     id: string;
     name: string;
     email: string;
+    createdAt?: string;
   };
 }
-
 
 export interface Application {
   id: string;
@@ -71,12 +73,9 @@ export interface GetMyApplicationsResponse {
   data: Application[];
 }
 
-export const getMyApplications =
-  (): Promise<GetMyApplicationsResponse> => {
-    return getRequest<GetMyApplicationsResponse>(
-      "/api/applications/my"
-    );
-  };
+export const getMyApplications = (): Promise<GetMyApplicationsResponse> => {
+  return getRequest<GetMyApplicationsResponse>("/api/applications/my");
+};
 
 /* ===========================
    APPLY FOR JOB
@@ -93,15 +92,10 @@ export interface ApplyJobResponse {
 }
 
 export const applyForJob = (
-  data: ApplyJobPayload
+  data: ApplyJobPayload,
 ): Promise<ApplyJobResponse> => {
-  return postRequest<ApplyJobResponse>(
-    "/api/applications",
-    data
-  );
+  return postRequest<ApplyJobResponse>("/api/applications", data);
 };
-
-
 
 /* ===========================
    GET RECRUITER APPLICATIONS
@@ -116,6 +110,6 @@ export interface GetRecruiterApplicationsResponse {
 export const getRecruiterApplications =
   (): Promise<GetRecruiterApplicationsResponse> => {
     return getRequest<GetRecruiterApplicationsResponse>(
-      "/api/applications/recruiter"
+      "/api/applications/recruiter",
     );
   };

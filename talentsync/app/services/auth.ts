@@ -1,4 +1,4 @@
-import { postRequest, getRequest, deleteRequest, putRequest } from "./api";
+import { postRequest, getRequest} from "./api";
 
 export interface LoginPayload {
   email: string;

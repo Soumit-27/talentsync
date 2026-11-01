@@ -2,6 +2,8 @@
 "use client";
 
 import { useState } from "react";
+import type { FormEvent } from "react";
+import axios from "axios";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { resetPasswordLink } from "../services/auth";
@@ -14,20 +16,22 @@ export default function ForgotPasswordPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
 
     try {
       setLoading(true);
-
-      const response = await resetPasswordLink({ email });
-
+      await resetPasswordLink({ email });
       setSuccess(true);
-    } catch (err: any) {
-      setError(
-        err?.response?.data?.message || "Unable to send reset link."
-      );
+    } catch (err: unknown) {
+      if (axios.isAxiosError<{ message?: string }>(err)) {
+        setError(
+          err.response?.data?.message || "Unable to send reset link."
+        );
+      } else {
+        setError("Something went wrong. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -36,7 +40,6 @@ export default function ForgotPasswordPage() {
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4">
       <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl">
-
         <div className="text-center mb-8">
           <div className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-3xl">
             🔐
@@ -47,7 +50,7 @@ export default function ForgotPasswordPage() {
           </h1>
 
           <p className="text-slate-400 mt-3 text-sm">
-            Enter your registered email address. We'll send you a password reset link.
+            Enter your registered email address. We&apos;ll send you a password reset link.
           </p>
         </div>
 
@@ -71,7 +74,6 @@ export default function ForgotPasswordPage() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-5">
-
             <div>
               <label className="block text-sm text-slate-300 mb-2">
                 Email Address
@@ -98,7 +100,6 @@ export default function ForgotPasswordPage() {
             >
               {loading ? "Sending..." : "Send Reset Link"}
             </button>
-
           </form>
         )}
 
@@ -110,7 +111,6 @@ export default function ForgotPasswordPage() {
             ← Back to Login
           </Link>
         </div>
-
       </div>
     </div>
   );

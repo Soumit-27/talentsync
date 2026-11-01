@@ -56,38 +56,24 @@ model CandidateProfile {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   phone String?
-
   title String?
-
   about String?
-
   experience Int?
-
   currentCompany String?
-
   currentSalary Float?
-
   expectedSalary Float?
-
   noticePeriod String?
-
   location String?
-
   preferredLocation String?
-
   github String?
-
   linkedin String?
-
   portfolio String?
-
   resumeUrl String?
-
   imageUrl String?
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  updatedAt    DateTime         @updatedAt
   applications JobApplication[]
 }
 

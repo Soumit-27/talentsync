@@ -374,7 +374,7 @@ export default function CandidateDetailsPage() {
             <Detail label="User ID" value={user?.id} />
             <Detail
               label="Profile Created"
-              value={formatDate(candidate?.createdAt)}
+              value={formatDate(user?.createdAt)}
             />
             <Detail
               label="Profile Updated"

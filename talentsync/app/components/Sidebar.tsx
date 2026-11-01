@@ -43,6 +43,7 @@ const menuItems = [
 export default function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
+  const [collapsed, setCollapsed] = useState(false);
   // Don't show recruiter sidebar on candidate pages
   if (
     pathname === "/candidateDashboard" ||
@@ -50,8 +51,6 @@ export default function Sidebar() {
   ) {
     return null;
   }
-
-  const [collapsed, setCollapsed] = useState(false);
 
   return (
     <aside

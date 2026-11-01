@@ -2,6 +2,8 @@
 "use client";
 
 import { useState, Suspense } from "react";
+import type { FormEvent } from "react";
+import axios from "axios";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { resetPassword } from "../services/auth";
@@ -23,7 +25,7 @@ function ResetPasswordContent() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
 
@@ -57,11 +59,15 @@ function ResetPasswordContent() {
         router.push("/auth/login");
       }, 2000);
 
-    } catch (err: any) {
-      setError(
-        err?.response?.data?.message ||
-        "Unable to reset password. Please try again."
-      );
+    } catch (err: unknown) {
+      if (axios.isAxiosError<{ message?: string }>(err)) {
+        setError(
+          err.response?.data?.message ||
+          "Unable to reset password. Please try again."
+        );
+      } else {
+        setError("Something went wrong. Please try again.");
+      }
     } finally {
       setLoading(false);
     }

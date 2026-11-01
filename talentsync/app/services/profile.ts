@@ -1,4 +1,4 @@
-import { getRequest, postRequest, deleteRequest, putRequest } from "./api";
+import { postRequest } from "./api";
 
 export interface CreateProfilePayload {
   phone: string;
