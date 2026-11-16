@@ -1,22 +1,13 @@
 import { Router } from "express";
+import { authenticate, authorize } from "../middleware/auth.middleware";
 import {
   createCompanyController,
   getMyCompanyController,
+  updateCompanyController,
 } from "./company.controller";
-import { authenticate } from "../middleware/auth.middleware";
-
 const router = Router();
-
-router.post(
-  "/",
-  authenticate,
-  createCompanyController
-);
-
-router.get(
-  "/me",
-  authenticate,
-  getMyCompanyController
-);
-
+router.use(authenticate, authorize("RECRUITER"));
+router.get("/me", getMyCompanyController);
+router.post("/", createCompanyController);
+router.put("/me", updateCompanyController);
 export default router;

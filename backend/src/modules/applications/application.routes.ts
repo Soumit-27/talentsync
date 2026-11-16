@@ -1,19 +1,19 @@
 import { Router } from "express";
+import { authenticate, authorize } from "../middleware/auth.middleware";
 import {
   applyForJob,
   getMyApplicationList,
   getRecruiterApplicationList,
+  getApplication,
+  updateApplicationStatus,
+  viewApplicationResume,
 } from "./application.controller";
-import { authenticate } from "../middleware/auth.middleware";
-
 const router = Router();
-
-router.post("/", authenticate, applyForJob);
-
-// Candidate gets their own applications
-router.get("/my", authenticate, getMyApplicationList);
-
-// Recruiter gets applications for their jobs
-router.get("/recruiter", authenticate, getRecruiterApplicationList);
-
+router.use(authenticate);
+router.post("/", authorize("CANDIDATE"), applyForJob);
+router.get("/my", authorize("CANDIDATE"), getMyApplicationList);
+router.get("/recruiter", authorize("RECRUITER"), getRecruiterApplicationList);
+router.get("/:id/resume", authorize("RECRUITER"), viewApplicationResume);
+router.get("/:id", authorize("RECRUITER"), getApplication);
+router.patch("/:id/status", authorize("RECRUITER"), updateApplicationStatus);
 export default router;

@@ -1,48 +1,30 @@
 import { z } from "zod";
-
-export const createInterviewSchema = z.object({
-  applicationId: z.string().uuid("Invalid application ID"),
-
-  scheduledAt: z.string().datetime({
-    message: "Invalid date and time",
-  }),
-
-  meetingLink: z.string().url().optional(),
-
-  notes: z.string().optional(),
-});
-
-export const updateInterviewSchema = z
-  .object({
-    scheduledAt: z
+const meetingLink = z
+  .union([
+    z
       .string()
-      .datetime({
-        message: "Invalid date and time",
-      })
-      .optional(),
-
-    meetingLink: z
-      .string()
+      .trim()
       .url()
-      .optional(),
-
-    notes: z.string().optional(),
-
-    status: z
-      .enum([
-        "SCHEDULED",
-        "COMPLETED",
-        "CANCELLED",
-      ])
-      .optional(),
+      .refine(
+        (value) => /^https?:\/\//i.test(value),
+        "Use an http or https meeting URL.",
+      ),
+    z.literal(""),
+  ])
+  .optional();
+export const createInterviewSchema = z.object({
+  applicationId: z.string().uuid(),
+  scheduledAt: z.string().datetime(),
+  meetingLink,
+  notes: z.string().trim().max(5000).optional(),
+});
+export const updateInterviewSchema = createInterviewSchema
+  .omit({ applicationId: true })
+  .partial()
+  .extend({
+    status: z.enum(["SCHEDULED", "COMPLETED", "CANCELLED"]).optional(),
   })
   .refine(
-    (data) =>
-      data.scheduledAt !== undefined ||
-      data.meetingLink !== undefined ||
-      data.notes !== undefined ||
-      data.status !== undefined,
-    {
-      message: "At least one field is required",
-    }
+    (data) => Object.keys(data).length > 0,
+    "Provide at least one field.",
   );

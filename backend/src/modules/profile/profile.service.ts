@@ -1,83 +1,55 @@
-import { PrismaClient } from "@prisma/client";
+import prisma from "../../lib/prisma";
 import { uploadToCloudinary } from "../../utils/cloudinaryUpload";
-
-const prisma = new PrismaClient();
-
-export const createProfile = async (userId: string, data: any) => {
-  const existing = await prisma.candidateProfile.findUnique({
-    where: {
-      userId,
-    },
+import { ProfileInput } from "./profile.validation";
+import { HttpError } from "../../lib/errors";
+export const createProfile = (userId: string, data: ProfileInput) =>
+  prisma.$transaction(async (tx) => {
+    const profile = await tx.candidateProfile.upsert({
+      where: { userId },
+      create: { ...data, userId },
+      update: data,
+    });
+    await tx.user.update({
+      where: { id: userId },
+      data: { profileCompleted: true },
+    });
+    return profile;
   });
-
-  if (existing) {
-    throw new Error("Profile already exists");
-  }
-
-  const profile = await prisma.candidateProfile.create({
-    data: {
-      userId,
-      ...data,
-    },
+export const getProfile = (userId: string) =>
+  prisma.candidateProfile.findUnique({ where: { userId } });
+export const updateProfile = createProfile;
+export const deleteProfile = (userId: string) =>
+  prisma.$transaction(async (tx) => {
+    await tx.candidateProfile.delete({ where: { userId } });
+    await tx.user.update({
+      where: { id: userId },
+      data: { profileCompleted: false },
+    });
   });
-
-  await prisma.user.update({
-    where: {
-      id: userId,
-    },
-    data: {
-      profileCompleted: true,
-    },
-  });
-
-  return profile;
-};
-
-export const getProfile = async (userId: string) => {
-  return prisma.candidateProfile.findUnique({
-    where: {
-      userId,
-    },
-  });
-};
-
-export const updateProfile = async (userId: string, data: any) => {
-  return prisma.candidateProfile.update({
-    where: {
-      userId,
-    },
-    data,
-  });
-};
-
-export const deleteProfile = async (userId: string) => {
-  return prisma.candidateProfile.delete({
-    where: {
-      userId,
-    },
-  });
-};
-
 export const uploadResume = async (
   userId: string,
   file: Express.Multer.File,
 ) => {
-  // Upload to Cloudinary
+  if (!(await getProfile(userId)))
+    throw new HttpError(409, "Save your profile before uploading your resume.");
+  if (file.buffer.subarray(0, 5).toString() !== "%PDF-")
+    throw new HttpError(400, "Upload a valid PDF document.");
+  if (
+    !process.env.CLOUDINARY_CLOUD_NAME ||
+    !process.env.CLOUDINARY_API_KEY ||
+    !process.env.CLOUDINARY_API_SECRET
+  )
+    throw new HttpError(
+      503,
+      "Resume uploads are temporarily unavailable. Please try again later.",
+    );
   const resumeUrl = await uploadToCloudinary(
     file.buffer,
     "talentsync/resumes",
-    `${userId}-resume`,
+    userId + "-resume",
   );
-
-  // Save URL in database
-  const profile = await prisma.candidateProfile.update({
-    where: {
-      userId,
-    },
-    data: {
-      resumeUrl,
-    },
+  return prisma.candidateProfile.update({
+    where: { userId },
+    data: { resumeUrl },
   });
-
-  return profile;
 };

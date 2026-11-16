@@ -1,34 +1,24 @@
 import { z } from "zod";
-
+const email = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .email("Enter a valid email address.")
+  .max(254);
 export const registerSchema = z.object({
-
   name: z
     .string()
-    .min(3, "Name must be at least 3 characters"),
-
-  email: z
-    .string()
-    .email("Invalid email"),
-
+    .trim()
+    .min(2, "Name must be at least 2 characters.")
+    .max(100),
+  email,
   password: z
     .string()
-    .min(6, "Password must be at least 6 characters"),
-
-  role: z.enum([
-    "CANDIDATE",
-    "RECRUITER"
-  ])
-
+    .min(8, "Password must be at least 8 characters.")
+    .max(72),
+  role: z.enum(["CANDIDATE", "RECRUITER"]),
 });
-
 export const loginSchema = z.object({
-
-  email: z
-    .string()
-    .email("Invalid email"),
-
-  password: z
-    .string()
-    .min(6, "Password must be at least 6 characters")
-
+  email,
+  password: z.string().min(1, "Enter your password.").max(72),
 });

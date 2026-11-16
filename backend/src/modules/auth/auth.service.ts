@@ -1,6 +1,5 @@
-import { PrismaClient, Prisma } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { Prisma } from "@prisma/client";
+import prisma from "../../lib/prisma";
 
 interface CreateUserInput {
   name: string;
@@ -37,6 +36,7 @@ export const findUserById = async (id: string) => {
       email: true,
       role: true,
       profileCompleted: true,
+      company: true,
       createdAt: true,
     },
   });

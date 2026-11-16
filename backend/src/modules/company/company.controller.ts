@@ -1,54 +1,31 @@
 import { Request, Response } from "express";
-import {
-  createCompany,
-  getMyCompany,
-} from "./company.service";
+import prisma from "../../lib/prisma";
+import { createCompany, getMyCompany } from "./company.service";
 import { createCompanySchema } from "./company.validation";
-
-export const createCompanyController = async (
-  req: Request,
-  res: Response
-) => {
-  try {
-    const recruiterId = req.user.id;
-
-    const validatedData = createCompanySchema.parse(req.body);
-
-    const company = await createCompany(
-      recruiterId,
-      validatedData
-    );
-
-    res.status(201).json({
-      success: true,
-      message: "Company created successfully",
-      data: company,
-    });
-  } catch (error: any) {
-    res.status(400).json({
-      success: false,
-      message: error.message,
-    });
-  }
+export const createCompanyController = async (req: Request, res: Response) => {
+  const data = await createCompany(
+    req.user.id,
+    createCompanySchema.parse(req.body),
+  );
+  res
+    .status(201)
+    .json({ success: true, message: "Company created successfully", data });
 };
-
-export const getMyCompanyController = async (
-  req: Request,
-  res: Response
-) => {
-  try {
-    const recruiterId = req.user.id;
-
-    const company = await getMyCompany(recruiterId);
-
-    res.status(200).json({
-      success: true,
-      data: company,
+export const getMyCompanyController = async (req: Request, res: Response) => {
+  res.json({ success: true, data: await getMyCompany(req.user.id) });
+};
+export const updateCompanyController = async (req: Request, res: Response) => {
+  const payload = createCompanySchema.parse(req.body);
+  const data = await prisma.$transaction(async (tx) => {
+    const company = await tx.company.update({
+      where: { recruiterId: req.user.id },
+      data: payload,
     });
-  } catch (error: any) {
-    res.status(404).json({
-      success: false,
-      message: error.message,
+    await tx.job.updateMany({
+      where: { recruiterId: req.user.id },
+      data: { companyName: company.name },
     });
-  }
+    return company;
+  });
+  res.json({ success: true, message: "Company updated successfully", data });
 };

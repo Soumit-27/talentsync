@@ -1,21 +1,37 @@
 import { z } from "zod";
-
+const link = z
+  .union([
+    z
+      .string()
+      .trim()
+      .url()
+      .refine(
+        (value) => /^https?:\/\//i.test(value),
+        "Use an http or https URL.",
+      ),
+    z.literal(""),
+  ])
+  .optional();
 export const profileSchema = z.object({
-  phone: z.string().optional(),
-  title: z.string().optional(),
-  about: z.string().optional(),
-  experience: z.number().optional(),
-  currentCompany: z.string().optional(),
-  currentSalary: z.number().optional(),
-  expectedSalary: z.number().optional(),
-  noticePeriod: z.string().optional(),
-  location: z.string().optional(),
-  preferredLocation: z.string().optional(),
-  github: z.string().url().optional(),
-  linkedin: z.string().url().optional(),
-  portfolio: z.string().url().optional(),
-  resumeUrl: z.string().optional(),
-  imageUrl: z.string().optional(),
+  phone: z
+    .string()
+    .trim()
+    .regex(/^\+?[\d\s()-]{7,20}$/, "Enter a valid phone number."),
+  title: z
+    .string()
+    .trim()
+    .min(2, "Enter your headline or field of study.")
+    .max(150),
+  about: z.string().trim().max(5000).optional(),
+  experience: z.number().int().min(0).max(50).optional(),
+  currentCompany: z.string().trim().max(150).optional(),
+  currentSalary: z.number().finite().nonnegative().optional(),
+  expectedSalary: z.number().finite().nonnegative().optional(),
+  noticePeriod: z.string().trim().max(100).optional(),
+  location: z.string().trim().min(2, "Enter your location.").max(200),
+  preferredLocation: z.string().trim().max(200).optional(),
+  github: link,
+  linkedin: link,
+  portfolio: link,
 });
-
 export type ProfileInput = z.infer<typeof profileSchema>;

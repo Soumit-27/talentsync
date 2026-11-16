@@ -1,35 +1,20 @@
-import express from "express";
+import { Router } from "express";
 import { authenticate } from "../middleware/auth.middleware";
-import { forgotPassword, getCurrentUser } from "./auth.controller";
-import { resetPassword } from "./auth.controller";
-
+import { rateLimit } from "../middleware/rate-limit";
 import {
   registerUser,
-  loginUser
+  loginUser,
+  logoutUser,
+  getCurrentUser,
+  forgotPassword,
+  resetPassword,
 } from "./auth.controller";
-
-const router = express.Router();
-
-router.post(
-  "/register",
-  registerUser
-);
-
-router.post(
-  "/login",
-  loginUser
-);
-
-
-router.get(
-  "/me",
-  authenticate,
-  getCurrentUser
-);
-
-
-router.post("/forgot-password", forgotPassword);
-
-router.post("/reset-password", resetPassword);
-
+const router = Router();
+const attempts = rateLimit(20, 15 * 60 * 1000);
+router.post("/register", attempts, registerUser);
+router.post("/login", attempts, loginUser);
+router.post("/logout", logoutUser);
+router.get("/me", authenticate, getCurrentUser);
+router.post("/forgot-password", rateLimit(5, 15 * 60 * 1000), forgotPassword);
+router.post("/reset-password", attempts, resetPassword);
 export default router;
