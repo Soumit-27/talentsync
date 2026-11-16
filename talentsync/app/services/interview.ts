@@ -1,5 +1,4 @@
-import { getRequest, postRequest } from "./api";
-
+import { getRequest, postRequest, patchRequest } from "./api";
 
 export interface InterviewJob {
   id: string;
@@ -68,8 +67,6 @@ export interface RecruiterInterview {
   application: InterviewApplication;
 }
 
-
-
 /* ===========================
    SCHEDULE INTERVIEW
 =========================== */
@@ -88,12 +85,9 @@ export interface ScheduleInterviewResponse {
 }
 
 export const scheduleInterview = (
-  payload: ScheduleInterviewPayload
+  payload: ScheduleInterviewPayload,
 ): Promise<ScheduleInterviewResponse> => {
-  return postRequest<ScheduleInterviewResponse>(
-    "/api/interviews",
-    payload
-  );
+  return postRequest<ScheduleInterviewResponse>("/api/interviews", payload);
 };
 
 /* ===========================
@@ -109,6 +103,16 @@ export interface GetRecruiterInterviewsResponse {
 export const getRecruiterInterviews =
   (): Promise<GetRecruiterInterviewsResponse> => {
     return getRequest<GetRecruiterInterviewsResponse>(
-      "/api/interviews/recruiter"
+      "/api/interviews/recruiter",
     );
   };
+export const getMyInterviews = () =>
+  getRequest<GetRecruiterInterviewsResponse>("/api/interviews/my");
+export interface UpdateInterviewPayload {
+  scheduledAt?: string;
+  meetingLink?: string;
+  notes?: string;
+  status?: "SCHEDULED" | "COMPLETED" | "CANCELLED";
+}
+export const updateInterview = (id: string, payload: UpdateInterviewPayload) =>
+  patchRequest<ScheduleInterviewResponse>(`/api/interviews/${id}`, payload);

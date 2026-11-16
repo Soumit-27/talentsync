@@ -1,9 +1,4 @@
-import {
-  getRequest,
-  postRequest,
-  putRequest,
-  deleteRequest,
-} from "./api";
+import { getRequest, postRequest, putRequest, deleteRequest } from "./api";
 
 /* ===========================
    CREATE JOB
@@ -34,6 +29,7 @@ export interface Job {
   recruiterId: string;
   createdAt: string;
   updatedAt: string;
+  _count?: { applications: number };
 }
 
 export interface CreateJobResponse {
@@ -43,12 +39,9 @@ export interface CreateJobResponse {
 }
 
 export const createJob = (
-  data: CreateJobPayload
+  data: CreateJobPayload,
 ): Promise<CreateJobResponse> => {
-  return postRequest<CreateJobResponse>(
-    "/api/jobs/",
-    data
-  );
+  return postRequest<CreateJobResponse>("/api/jobs/", data);
 };
 
 /* ===========================
@@ -61,9 +54,7 @@ export interface GetAllJobsResponse {
 }
 
 export const getAllJobs = (): Promise<GetAllJobsResponse> => {
-  return getRequest<GetAllJobsResponse>(
-    "/api/jobs/"
-  );
+  return getRequest<GetAllJobsResponse>("/api/jobs/");
 };
 
 /* ===========================
@@ -75,12 +66,8 @@ export interface GetJobResponse {
   data: Job;
 }
 
-export const getJobById = (
-  id: string
-): Promise<GetJobResponse> => {
-  return getRequest<GetJobResponse>(
-    `/api/jobs/${id}`
-  );
+export const getJobById = (id: string): Promise<GetJobResponse> => {
+  return getRequest<GetJobResponse>(`/api/jobs/${id}`);
 };
 
 /* ===========================
@@ -107,12 +94,9 @@ export interface UpdateJobResponse {
 
 export const updateJob = (
   id: string,
-  data: UpdateJobPayload
+  data: UpdateJobPayload,
 ): Promise<UpdateJobResponse> => {
-  return putRequest<UpdateJobResponse>(
-    `/api/jobs/${id}`,
-    data
-  );
+  return putRequest<UpdateJobResponse>(`/api/jobs/${id}`, data);
 };
 
 /* ===========================
@@ -124,10 +108,7 @@ export interface DeleteJobResponse {
   message: string;
 }
 
-export const deleteJob = (
-  id: string
-): Promise<DeleteJobResponse> => {
-  return deleteRequest<DeleteJobResponse>(
-    `/api/jobs/${id}`
-  );
+export const deleteJob = (id: string): Promise<DeleteJobResponse> => {
+  return deleteRequest<DeleteJobResponse>(`/api/jobs/${id}`);
 };
+export const getMyJobs = () => getRequest<GetAllJobsResponse>("/api/jobs/my");

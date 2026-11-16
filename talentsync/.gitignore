@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Isolated browser verification
+/.next-e2e/
+/test-results/
+/playwright-report/
+/test-artifacts/
+!.env.example

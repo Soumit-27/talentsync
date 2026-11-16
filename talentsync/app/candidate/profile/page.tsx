@@ -1,48 +1,32 @@
 "use client";
-
-import { useState, ChangeEvent, FormEvent, useRef, useEffect } from "react";
+import { resumeViewUrl } from "../../services/resume";
+import { useState, type FormEvent } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { UserRound, FileText, ArrowRight } from "lucide-react";
 import {
-  CreateProfilePayload,
+  getProfile,
   createProfile,
   uploadResume,
-} from "@/app/services/profile";
-import { useRouter } from "next/navigation";
-import { useMutation } from "@tanstack/react-query";
-import { getLoginUser } from "@/app/services/auth";
-
-// ============================================================
-//  Types (matching your existing schema)
-// ============================================================
-export interface CandidateProfile {
-  id?: string;
-  userId: string;
-  phone: string;
-  title: string;
-  about: string;
-  experience: number;
-  currentCompany: string;
-  currentSalary: number;
-  expectedSalary: number;
-  noticePeriod: string;
-  location: string;
-  preferredLocation: string;
-  github: string;
-  linkedin: string;
-  portfolio: string;
-  resumeUrl: string | null;
-  imageUrl: string | null;
-}
-
-const NOTICE_PERIOD_OPTIONS = [
-  "Immediate",
-  "15 Days",
-  "30 Days",
-  "60 Days",
-  "90 Days",
-];
-
-const EMPTY_PROFILE: CandidateProfile = {
-  userId: "",
+  type CreateProfilePayload,
+} from "../../services/profile";
+import type { CandidateProfile } from "../../services/job_application";
+import { errorMessage } from "../../services/api";
+import { useSession } from "../../components/ProtectedRoute";
+import {
+  Page,
+  PageTitle,
+  Field,
+  ErrorState,
+  Loading,
+  Notice,
+  inputClass,
+  buttonClass,
+  cardClass,
+  secondaryClass,
+} from "../../components/ui";
+const empty: CreateProfilePayload = {
   phone: "",
   title: "",
   about: "",
@@ -50,552 +34,282 @@ const EMPTY_PROFILE: CandidateProfile = {
   currentCompany: "",
   currentSalary: 0,
   expectedSalary: 0,
-  noticePeriod: "30 Days",
+  noticePeriod: "Immediate",
   location: "",
   preferredLocation: "",
   github: "",
   linkedin: "",
   portfolio: "",
-  resumeUrl: null,
-  imageUrl: null,
 };
-
-interface CandidateProfileFormProps {
-  userId: string;
-  initialData?: Partial<CandidateProfile>;
-  onSubmit?: (profile: CandidateProfile, isDraft: boolean) => void;
-}
-
-// ============================================================
-//  Main Component
-// ============================================================
-export default function CandidateProfileForm({
-  userId,
-  initialData,
-  onSubmit,
-}: CandidateProfileFormProps) {
-  const [profile, setProfile] = useState<CandidateProfile>({
-    ...EMPTY_PROFILE,
-    ...initialData,
-    userId,
-  });
-  const [resumeFile, setResumeFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(
-    initialData?.imageUrl ?? null,
-  );
-  const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState<
-    Partial<Record<keyof CandidateProfile, string>>
-  >({});
-
-  const imageInputRef = useRef<HTMLInputElement>(null);
-  const resumeInputRef = useRef<HTMLInputElement>(null);
+function ProfileForm({ initial }: { initial: CandidateProfile | null }) {
+  const user = useSession();
   const router = useRouter();
-
-  const getUserMutation = useMutation({
-    mutationFn: getLoginUser,
-
-    onSuccess: (response) => {
-      if (response.user.profileCompleted) {
-        router.push("/candidateDashboard");
-      }
-    },
-
-    onError: (error) => {
-      console.error("Failed to check profile:", error);
-    },
-  });
-
-  useEffect(() => {
-    getUserMutation.mutate();
-  }, []);
-
-  // ------------------------------------------------------------
-  //  Helpers
-  // ------------------------------------------------------------
-  function update<K extends keyof CandidateProfile>(
-    key: K,
-    value: CandidateProfile[K],
-  ) {
-    setProfile((prev) => ({ ...prev, [key]: value }));
-    if (errors[key]) {
-      setErrors((prev) => ({ ...prev, [key]: undefined }));
-    }
-  }
-
-  function handleImageChange(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const url = URL.createObjectURL(file);
-    setImagePreview(url);
-    // TODO: upload to cloud and set profile.imageUrl
-  }
-
-  function handleResumeChange(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-
-    if (!file) return;
-
-    setResumeFile(file);
-  }
-
-  function validate(): boolean {
-    const nextErrors: Partial<Record<keyof CandidateProfile, string>> = {};
-    if (!profile.title.trim()) nextErrors.title = "Job title is required.";
-    if (!/^\d{10}$/.test(profile.phone))
-      nextErrors.phone = "Enter a valid 10-digit phone number.";
-    if (!profile.location.trim())
-      nextErrors.location = "Current location is required.";
-    if (profile.expectedSalary <= 0)
-      nextErrors.expectedSalary = "Enter an expected salary.";
-    setErrors(nextErrors);
-    return Object.keys(nextErrors).length === 0;
-  }
-
-  async function handleSubmit(e: FormEvent, isDraft: boolean) {
-    e.preventDefault();
-    if (!isDraft && !validate()) return;
-
-    setSaving(true);
+  const client = useQueryClient();
+  const [form, setForm] = useState<CreateProfilePayload>(
+    () =>
+      Object.fromEntries(
+        Object.entries(empty).map(([key, value]) => [
+          key,
+          initial?.[key as keyof CandidateProfile] ?? value,
+        ]),
+      ) as unknown as CreateProfilePayload,
+  );
+  const [file, setFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  const [saved, setSaved] = useState(false);
+  const [resume, setResume] = useState(initial?.resumeUrl);
+  const change = (key: keyof CreateProfilePayload, value: string | number) => {
+    setForm((previous) => ({ ...previous, [key]: value }));
+    setSaved(false);
+  };
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setBusy(true);
+    setSaved(false);
     try {
-      // ------------------------------------------------------------
-      //  Build payload exactly as your API expects
-      //  (no userId, resumeUrl, imageUrl – those are separate)
-      // ------------------------------------------------------------
-      const payload: CreateProfilePayload = {
-        phone: profile.phone,
-        title: profile.title,
-        about: profile.about,
-        experience: profile.experience,
-        currentCompany: profile.currentCompany,
-        currentSalary: profile.currentSalary,
-        expectedSalary: profile.expectedSalary,
-        noticePeriod: profile.noticePeriod,
-        location: profile.location,
-        preferredLocation: profile.preferredLocation,
-        github: profile.github,
-        linkedin: profile.linkedin,
-        portfolio: profile.portfolio,
-      };
-
-      const result = await createProfile(payload);
-
-      console.log("Profile saved:", result);
-
-      // Upload resume after profile is created
-      if (resumeFile) {
-        const resumeResult = await uploadResume(resumeFile);
-
-        console.log("Resume uploaded:", resumeResult);
-
-        if (resumeResult.resumeUrl) {
-          update("resumeUrl", resumeResult.resumeUrl);
+      if (
+        file &&
+        (file.type !== "application/pdf" || file.size > 5 * 1024 * 1024)
+      )
+        throw new Error("Choose a PDF resume of 5 MB or smaller.");
+      await createProfile(form);
+      await client.invalidateQueries({ queryKey: ["session"] });
+      if (file) {
+        try {
+          const result = await uploadResume(file);
+          setResume(result.resumeUrl);
+          setFile(null);
+        } catch (failure) {
+          throw new Error(
+            "Your profile was saved, but the resume upload failed. " +
+              errorMessage(failure) +
+              " You can retry by saving again, or continue without a resume.",
+          );
         }
       }
-
-      router.push("/candidateDashboard");
-
-      if (onSubmit) {
-        onSubmit(profile, isDraft);
-      }
-    } catch (error) {
-      console.error("Failed to save profile:", error);
-      // Optionally show a toast notification
+      await client.invalidateQueries({ queryKey: ["candidate-profile"] });
+      setSaved(true);
+      if (!user.profileCompleted) router.replace("/candidateDashboard");
+    } catch (failure) {
+      setError(failure);
     } finally {
-      setSaving(false);
+      setBusy(false);
     }
   }
-
-  // ------------------------------------------------------------
-  //  Reusable input field (with improved placeholder styling)
-  // ------------------------------------------------------------
-  const renderField = ({
-    label,
-    name,
+  const text = (
+    key: keyof CreateProfilePayload,
+    label: string,
+    required = false,
     type = "text",
-    placeholder,
-    required,
-    value,
-    onChange,
-    error,
-    className = "",
-  }: {
-    label: string;
-    name: keyof CandidateProfile;
-    type?: string;
-    placeholder?: string;
-    required?: boolean;
-    value: string | number;
-    onChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
-    error?: string;
-    className?: string;
-  }) => (
-    <div className={className}>
-      <label htmlFor={name} className="block text-sm font-medium text-gray-700">
-        {label} {required && <span className="text-red-500">*</span>}
-      </label>
+    placeholder = "",
+  ) => (
+    <Field label={label}>
       <input
-        id={name}
+        className={inputClass}
         type={type}
+        required={required}
+        value={form[key]}
+        onChange={(event) => change(key, event.target.value)}
         placeholder={placeholder}
-        value={value}
-        onChange={onChange}
-        className={`mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 shadow-sm transition-colors focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-200 ${
-          error ? "border-red-500" : ""
-        }`}
+        maxLength={key === "phone" ? 20 : 200}
       />
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
-    </div>
+    </Field>
   );
-
-  // ============================================================
-  //  Render
-  // ============================================================
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4 md:p-8">
-      <form
-        onSubmit={(e) => handleSubmit(e, false)}
-        className="w-full max-w-7xl rounded-xl border-t-4 border-blue-600 bg-white p-6 shadow-lg md:p-8 lg:p-10"
-      >
-        {/* Header */}
-        <div className="mb-8 border-b border-gray-200 pb-5">
-          <h2 className="text-3xl font-bold text-gray-900">Edit Profile</h2>
-          <p className="mt-1 text-sm text-gray-500">
-            Fill in your details to attract the best opportunities.
-          </p>
+    <form onSubmit={submit} className="space-y-6">
+      {saved && (
+        <Notice>
+          Profile saved. Your updated details will be available with your
+          applications.
+        </Notice>
+      )}
+      {error != null && <ErrorState error={error} />}
+      <section className={cardClass}>
+        <div className="mb-6 flex items-center gap-3">
+          <span className="rounded-xl bg-indigo-50 p-3 text-indigo-600">
+            <UserRound size={22} />
+          </span>
+          <div>
+            <h2 className="font-bold text-slate-900">
+              Tell employers about yourself
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Start with the essentials. Fields marked * are required.
+            </p>
+          </div>
         </div>
-
-        {/* ========== PERSONAL INFORMATION ========== */}
-        <section className="mb-10">
-          <h3 className="mb-5 text-xl font-semibold text-gray-800">
-            Personal Information
-          </h3>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            {/* Photo Upload */}
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Profile Photo
-              </label>
-              <div className="mt-1 flex items-center gap-4">
-                <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-full bg-gray-100">
-                  {imagePreview ? (
-                    <img
-                      src={imagePreview}
-                      alt="Profile preview"
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-xs text-gray-400">
-                      Photo
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => imageInputRef.current?.click()}
-                    className="rounded-md bg-white px-4 py-2 text-sm font-medium text-blue-600 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 hover:ring-blue-400"
-                  >
-                    Upload
-                  </button>
-                  <input
-                    ref={imageInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleImageChange}
-                  />
-                </div>
-                {imagePreview && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setImagePreview(null);
-                      update("imageUrl", null);
-                      if (imageInputRef.current)
-                        imageInputRef.current.value = "";
-                    }}
-                    className="text-sm text-red-500 hover:underline"
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Job Title */}
-            {renderField({
-              label: "Job Title",
-              name: "title",
-              placeholder: "e.g. Frontend Developer",
-              required: true,
-              value: profile.title,
-              onChange: (e) => update("title", e.target.value),
-              error: errors.title,
-            })}
-
-            {/* Phone */}
-            {renderField({
-              label: "Phone Number",
-              name: "phone",
-              type: "tel",
-              placeholder: "9876543210",
-              required: true,
-              value: profile.phone,
-              onChange: (e) => update("phone", e.target.value),
-              error: errors.phone,
-            })}
-
-            {/* Experience */}
-            {renderField({
-              label: "Experience (years)",
-              name: "experience",
-              type: "number",
-              placeholder: "0",
-              value: profile.experience,
-              onChange: (e) => update("experience", Number(e.target.value)),
-              error: errors.experience,
-            })}
-
-            {/* About - full width */}
-            <div className="md:col-span-2">
-              <label
-                htmlFor="about"
-                className="block text-sm font-medium text-gray-700"
-              >
-                About
-              </label>
+        <fieldset disabled={busy} className="grid gap-5 sm:grid-cols-2">
+          {text(
+            "title",
+            "Headline / field of study *",
+            true,
+            "text",
+            "Computer science student / Frontend developer",
+          )}
+          {text("phone", "Phone number *", true, "tel", "+91 9876543210")}
+          {text("location", "Current city *", true, "text", "Bengaluru")}
+          {text(
+            "preferredLocation",
+            "Preferred location",
+            false,
+            "text",
+            "Remote, Bengaluru",
+          )}
+          <Field
+            label="Years of experience"
+            hint="Enter 0 if you are a student or fresher."
+          >
+            <input
+              className={inputClass}
+              type="number"
+              min="0"
+              max="50"
+              step="1"
+              value={form.experience}
+              onChange={(event) =>
+                change("experience", Number(event.target.value))
+              }
+            />
+          </Field>
+          {text("currentCompany", "Current company / college")}
+          <div className="sm:col-span-2">
+            <Field
+              label="About you"
+              hint="Mention your education, skills, projects, and the kind of opportunity you want."
+            >
               <textarea
-                id="about"
-                rows={4}
-                placeholder="Brief summary about yourself"
-                value={profile.about}
-                onChange={(e) => update("about", e.target.value)}
-                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 shadow-sm transition-colors focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                className={inputClass}
+                rows={5}
+                maxLength={5000}
+                value={form.about}
+                onChange={(event) => change("about", event.target.value)}
               />
-            </div>
+            </Field>
           </div>
-        </section>
-
-        <hr className="my-8 border-gray-200" />
-
-        {/* ========== WORK & SALARY ========== */}
-        <section className="mb-10">
-          <h3 className="mb-5 text-xl font-semibold text-gray-800">
-            Work & Salary
-          </h3>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            {/* Current Company */}
-            {renderField({
-              label: "Current Company",
-              name: "currentCompany",
-              placeholder: "Company name",
-              value: profile.currentCompany,
-              onChange: (e) => update("currentCompany", e.target.value),
-            })}
-
-            {/* Notice Period */}
-            <div>
-              <label
-                htmlFor="noticePeriod"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Notice Period
-              </label>
-              <select
-                id="noticePeriod"
-                value={profile.noticePeriod}
-                onChange={(e) => update("noticePeriod", e.target.value)}
-                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm transition-colors focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-200"
-              >
-                {NOTICE_PERIOD_OPTIONS.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Current Salary */}
-            {renderField({
-              label: "Current Salary (monthly)",
-              name: "currentSalary",
-              type: "number",
-              placeholder: "50000",
-              value: profile.currentSalary,
-              onChange: (e) => update("currentSalary", Number(e.target.value)),
-            })}
-
-            {/* Expected Salary */}
-            {renderField({
-              label: "Expected Salary",
-              name: "expectedSalary",
-              type: "number",
-              placeholder: "80000",
-              required: true,
-              value: profile.expectedSalary,
-              onChange: (e) => update("expectedSalary", Number(e.target.value)),
-              error: errors.expectedSalary,
-            })}
-
-            {/* Current Location */}
-            {renderField({
-              label: "Current Location",
-              name: "location",
-              placeholder: "City, Country",
-              required: true,
-              value: profile.location,
-              onChange: (e) => update("location", e.target.value),
-              error: errors.location,
-            })}
-
-            {/* Preferred Location */}
-            {renderField({
-              label: "Preferred Location",
-              name: "preferredLocation",
-              placeholder: "City, Country",
-              value: profile.preferredLocation,
-              onChange: (e) => update("preferredLocation", e.target.value),
-            })}
-          </div>
-        </section>
-
-        <hr className="my-8 border-gray-200" />
-
-        {/* ========== LINKS & DOCUMENTS ========== */}
-        <section className="mb-10">
-          <h3 className="mb-5 text-xl font-semibold text-gray-800">
-            Links & Documents
-          </h3>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            {renderField({
-              label: "GitHub",
-              name: "github",
-              placeholder: "https://github.com/username",
-              value: profile.github,
-              onChange: (e) => update("github", e.target.value),
-            })}
-            {renderField({
-              label: "LinkedIn",
-              name: "linkedin",
-              placeholder: "https://linkedin.com/in/username",
-              value: profile.linkedin,
-              onChange: (e) => update("linkedin", e.target.value),
-            })}
-            {renderField({
-              label: "Portfolio",
-              name: "portfolio",
-              placeholder: "https://yourportfolio.com",
-              value: profile.portfolio,
-              onChange: (e) => update("portfolio", e.target.value),
-            })}
-
-            {/* Resume Upload - improved dashed area */}
-            <div className="md:col-span-2">
-              <label
-                htmlFor="resume"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Resume (PDF, DOC, DOCX)
-              </label>
-              <div
-                className={`mt-1 flex flex-wrap items-center gap-3 rounded-md border-2 border-dashed ${
-                  resumeFile || profile.resumeUrl
-                    ? "border-blue-300 bg-blue-50"
-                    : "border-gray-300 bg-white"
-                } px-4 py-3 transition-colors`}
-              >
-                <div className="flex-1 text-sm text-gray-600">
-                  {resumeFile ? (
-                    <span className="font-medium text-blue-600">
-                      {resumeFile.name}
-                    </span>
-                  ) : profile.resumeUrl ? (
-                    <span className="text-green-600">✓ Uploaded</span>
-                  ) : (
-                    <span className="text-gray-400">
-                      Drag & drop or click to upload
-                    </span>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => resumeInputRef.current?.click()}
-                  className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                >
-                  {resumeFile || profile.resumeUrl ? "Replace" : "Browse"}
-                </button>
-                <input
-                  ref={resumeInputRef}
-                  type="file"
-                  accept=".pdf,.doc,.docx"
-                  className="hidden"
-                  onChange={handleResumeChange}
-                />
-                {(resumeFile || profile.resumeUrl) && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setResumeFile(null);
-                      update("resumeUrl", null);
-                      if (resumeInputRef.current)
-                        resumeInputRef.current.value = "";
-                    }}
-                    className="text-sm text-red-500 hover:underline"
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ========== ACTIONS ========== */}
-        <div className="flex flex-col-reverse gap-3 border-t border-gray-200 pt-6 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            disabled={saving}
-            onClick={(e) => handleSubmit(e, true)}
-            className="inline-flex justify-center rounded-md bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 hover:ring-blue-400 disabled:opacity-50"
+          <Field
+            label="Expected annual salary (INR)"
+            hint="Optional. Enter 0 if you are open to discussion."
           >
-            Save as Draft
-          </button>
-          <button
-            type="submit"
-            disabled={saving}
-            className="inline-flex justify-center rounded-md bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
-          >
-            {saving ? (
-              <>
-                <svg
-                  className="mr-2 h-4 w-4 animate-spin"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                  ></path>
-                </svg>
-                Saving...
-              </>
-            ) : (
-              "Publish Profile"
-            )}
-          </button>
+            <input
+              className={inputClass}
+              type="number"
+              min="0"
+              step="1000"
+              value={form.expectedSalary}
+              onChange={(event) =>
+                change("expectedSalary", Number(event.target.value))
+              }
+            />
+          </Field>
+          <Field label="Availability">
+            <select
+              className={inputClass}
+              value={form.noticePeriod}
+              onChange={(event) => change("noticePeriod", event.target.value)}
+            >
+              {["Immediate", "15 Days", "30 Days", "60 Days", "90 Days"].map(
+                (option) => (
+                  <option key={option}>{option}</option>
+                ),
+              )}
+            </select>
+          </Field>
+          {text(
+            "linkedin",
+            "LinkedIn URL",
+            false,
+            "url",
+            "https://linkedin.com/in/your-name",
+          )}
+          {text(
+            "github",
+            "GitHub URL",
+            false,
+            "url",
+            "https://github.com/your-name",
+          )}
+          {text(
+            "portfolio",
+            "Portfolio URL",
+            false,
+            "url",
+            "https://your-portfolio.com",
+          )}
+        </fieldset>
+      </section>
+      <section className={cardClass}>
+        <div className="mb-4 flex items-center gap-3">
+          <FileText size={22} className="text-indigo-600" />
+          <div>
+            <h2 className="font-bold text-slate-900">Your resume</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Optional PDF, up to 5 MB. Uploaded securely when you save your
+              profile.
+            </p>
+          </div>
         </div>
-      </form>
-    </div>
+        {resume && (
+          <a
+            href={resumeViewUrl()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mb-4 inline-block text-sm font-semibold text-indigo-600 underline"
+          >
+            View current resume
+          </a>
+        )}
+        <Field label={resume ? "Replace resume" : "Upload resume"}>
+          <input
+            type="file"
+            accept="application/pdf,.pdf"
+            disabled={busy}
+            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+            className={inputClass}
+          />
+        </Field>
+      </section>
+      <div className="flex flex-wrap justify-end gap-3">
+        {user.profileCompleted && (
+          <Link href="/candidateDashboard" className={secondaryClass}>
+            Back to jobs
+          </Link>
+        )}
+        <button type="submit" disabled={busy} className={buttonClass}>
+          {busy
+            ? "Saving your profile..."
+            : user.profileCompleted
+              ? "Save changes"
+              : "Save and explore jobs"}
+          <ArrowRight size={17} />
+        </button>
+      </div>
+    </form>
+  );
+}
+export default function ProfilePage() {
+  const profile = useQuery({
+    queryKey: ["candidate-profile"],
+    queryFn: getProfile,
+  });
+  return (
+    <Page>
+      <PageTitle
+        eyebrow="Your profile"
+        title="A great opportunity starts with you."
+        description="Create a profile once, then apply to jobs and internships with a single click."
+      />
+      {profile.isPending ? (
+        <Loading />
+      ) : profile.isError ? (
+        <ErrorState
+          error={profile.error}
+          retry={() => void profile.refetch()}
+        />
+      ) : (
+        <ProfileForm key={profile.data?.id ?? "new"} initial={profile.data} />
+      )}
+    </Page>
   );
 }

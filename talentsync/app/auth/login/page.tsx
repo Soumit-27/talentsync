@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useMutation } from "@tanstack/react-query";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Mail,
   Lock,
@@ -16,7 +16,8 @@ import {
 } from "lucide-react";
 import { Plus_Jakarta_Sans } from "next/font/google";
 
-import { loginUser, LoginResponse } from "@/app/services/auth";
+import { errorMessage } from "@/app/services/api";
+import { loginUser, userHome } from "@/app/services/auth";
 
 const font = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -27,12 +28,12 @@ const HIGHLIGHTS = [
   {
     Icon: Search,
     title: "Fresh roles every day",
-    desc: "Thousands of verified openings across India.",
+    desc: "Explore jobs and internships published by employers.",
   },
   {
     Icon: BellRing,
-    title: "Real-time updates",
-    desc: "Know the moment an application moves forward.",
+    title: "Application updates",
+    desc: "Follow your progress from application to interview.",
   },
   {
     Icon: LayoutDashboard,
@@ -44,8 +45,11 @@ const HIGHLIGHTS = [
 const inputClass =
   "h-12 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-4 text-[15px] text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100";
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
+  const params = useSearchParams();
+  const client = useQueryClient();
+  const [error, setError] = useState("");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -55,24 +59,20 @@ export default function LoginPage() {
     mutationFn: loginUser,
 
     onSuccess: (data) => {
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
-
-      if (data.user.role === "CANDIDATE") {
-        router.push("/candidate/profile");
-      } else {
-        router.push("/dashboard");
-      }
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      client.clear();
+      router.replace(userHome(data.user));
     },
 
     onError: (error) => {
-      console.error(error);
-      alert("Login Failed");
+      setError(errorMessage(error));
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
     loginMutation.mutate({ email, password });
   };
 
@@ -147,6 +147,22 @@ export default function LoginPage() {
           <p className="mt-2 text-slate-600">Enter your details to continue.</p>
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+            {params.get("registered") === "1" && (
+              <p
+                role="status"
+                className="rounded-xl bg-emerald-50 p-4 text-sm text-emerald-800"
+              >
+                Account created. Log in to finish setting up your profile.
+              </p>
+            )}
+            {error && (
+              <p
+                role="alert"
+                className="rounded-xl bg-rose-50 p-4 text-sm text-rose-700"
+              >
+                {error}
+              </p>
+            )}
             {/* Email */}
             <div>
               <label
@@ -216,21 +232,6 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Remember */}
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="remember"
-                className="h-4 w-4 cursor-pointer rounded border-slate-300 accent-indigo-600"
-              />
-              <label
-                htmlFor="remember"
-                className="cursor-pointer select-none text-sm text-slate-600"
-              >
-                Remember me
-              </label>
-            </div>
-
             {/* Submit */}
             <button
               type="submit"
@@ -251,25 +252,6 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Divider */}
-          <div className="my-7 flex items-center gap-3">
-            <div className="h-px flex-1 bg-slate-200" />
-            <p className="whitespace-nowrap text-xs font-semibold tracking-wider text-slate-400">
-              OR CONTINUE WITH
-            </p>
-            <div className="h-px flex-1 bg-slate-200" />
-          </div>
-
-          {/* Social Buttons */}
-          <div className="grid grid-cols-2 gap-3">
-            <button className="h-12 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50">
-              Google
-            </button>
-            <button className="h-12 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50">
-              GitHub
-            </button>
-          </div>
-
           {/* Register */}
           <p className="mt-8 text-center text-sm text-slate-600">
             Don&apos;t have an account?{" "}
@@ -284,5 +266,19 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div role="status" className="p-8">
+          Loading login...
+        </div>
+      }
+    >
+      <LoginContent />
+    </Suspense>
   );
 }

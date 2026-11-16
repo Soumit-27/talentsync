@@ -1,5 +1,5 @@
-import { postRequest } from "./api";
-
+import { getRequest, postRequest } from "./api";
+import type { CandidateProfile } from "./job_application";
 export interface CreateProfilePayload {
   phone: string;
   title: string;
@@ -15,23 +15,16 @@ export interface CreateProfilePayload {
   linkedin: string;
   portfolio: string;
 }
-
-export const createProfile = async (data: CreateProfilePayload) => {
-  return await postRequest("/api/profile", data);
-};
-
-interface UploadResumeResponse {
-  resumeUrl: string;
-}
-
-export const uploadResume = async (
-  file: File,
-): Promise<UploadResumeResponse> => {
-  const formData = new FormData();
-  formData.append("resume", file);
-
-  return await postRequest<UploadResumeResponse>(
-    "/api/profile/upload-resume",
-    formData,
-  );
+export const getProfile = () =>
+  getRequest<CandidateProfile | null>("/api/profile");
+export const createProfile = (data: CreateProfilePayload) =>
+  postRequest<CandidateProfile>("/api/profile", data);
+export const uploadResume = (file: File) => {
+  const data = new FormData();
+  data.append("resume", file);
+  return postRequest<{
+    success: boolean;
+    resumeUrl: string;
+    profile: CandidateProfile;
+  }>("/api/profile/upload-resume", data);
 };

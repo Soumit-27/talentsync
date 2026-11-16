@@ -1,7 +1,10 @@
-
 node_modules
 .next
-.git
+.next-e2e
 .env
-.env.local
-.env.production
+.env.*
+.git
+*.log
+test-results
+test-artifacts
+playwright-report

@@ -1,189 +1,159 @@
-
 "use client";
-
-import { useQuery } from "@tanstack/react-query";
-import { CalendarCheck, MapPin, Briefcase, Clock, ExternalLink } from "lucide-react";
-import { getRecruiterInterviews } from "../services/interview";
-
+import { useState } from "react";
+import Link from "next/link";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { CalendarDays, ArrowUpRight } from "lucide-react";
+import { getRecruiterInterviews, updateInterview } from "../services/interview";
+import {
+  Page,
+  PageTitle,
+  Loading,
+  ErrorState,
+  EmptyState,
+  Status,
+  Notice,
+  dateTime,
+  cardClass,
+  buttonClass,
+  secondaryClass,
+  inputClass,
+} from "../components/ui";
 export default function InterviewsPage() {
-  const {
-    data,
-    isLoading,
-    isError,
-  } = useQuery({
+  const client = useQueryClient();
+  const [filter, setFilter] = useState("");
+  const query = useQuery({
     queryKey: ["recruiter-interviews"],
     queryFn: getRecruiterInterviews,
+    refetchInterval: 30000,
   });
-
-  const interviews = data?.data ?? [];
-
-  if (isLoading) {
-    return (
-      <div className="p-8 text-slate-600">
-        Loading interviews...
-      </div>
-    );
-  }
-
-  if (isError) {
-    return (
-      <div className="p-8 text-red-600">
-        Failed to load interviews. Please try again.
-      </div>
-    );
-  }
-
+  const change = useMutation({
+    mutationFn: ({
+      id,
+      status,
+    }: {
+      id: string;
+      status: "COMPLETED" | "CANCELLED";
+    }) => updateInterview(id, { status }),
+    onSuccess: async () => {
+      await Promise.all([
+        client.invalidateQueries({ queryKey: ["recruiter-interviews"] }),
+        client.invalidateQueries({ queryKey: ["recruiter-applications"] }),
+        client.invalidateQueries({ queryKey: ["application"] }),
+      ]);
+    },
+  });
+  const interviews = (query.data?.data ?? []).filter(
+    (item) => !filter || item.status === filter,
+  );
   return (
-    <div className="min-h-screen bg-slate-50 p-6 md:p-8">
-      <div className="mx-auto max-w-6xl">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900">
-            Interviews
-          </h1>
-          <p className="mt-2 text-slate-500">
-            Manage your scheduled candidate interviews.
-          </p>
-        </div>
-
-        {/* Stats */}
-        <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-6">
-          <div className="flex items-center gap-4">
-            <div className="rounded-xl bg-blue-100 p-3 text-blue-600">
-              <CalendarCheck size={26} />
-            </div>
-            <div>
-              <p className="text-sm text-slate-500">
-                Total Interviews
+    <Page>
+      <PageTitle
+        eyebrow="Interviews"
+        title="Good conversations lead to great hires."
+        description="Join meetings, reschedule from the candidate application, and keep interview outcomes up to date. All times use your local timezone."
+        action={
+          <Link href="/candidates" className={secondaryClass}>
+            Schedule from candidates
+          </Link>
+        }
+      />
+      {change.isError && <ErrorState error={change.error} />}
+      {change.isSuccess && (
+        <Notice>
+          Interview updated. The candidate can see the latest details.
+        </Notice>
+      )}
+      <select
+        aria-label="Interview status"
+        className={inputClass + " sm:max-w-xs"}
+        value={filter}
+        onChange={(event) => setFilter(event.target.value)}
+      >
+        <option value="">All interviews</option>
+        <option value="SCHEDULED">Scheduled</option>
+        <option value="COMPLETED">Completed</option>
+        <option value="CANCELLED">Cancelled</option>
+      </select>
+      {query.isPending ? (
+        <Loading />
+      ) : query.isError ? (
+        <ErrorState error={query.error} retry={() => void query.refetch()} />
+      ) : interviews.length === 0 ? (
+        <EmptyState title="No interviews to show">
+          Schedule an interview from a candidate application, or change your
+          filter to see past interviews.
+        </EmptyState>
+      ) : (
+        <div className="grid items-start gap-5 xl:grid-cols-2">
+          {interviews.map((interview) => (
+            <article key={interview.id} className={cardClass}>
+              <div className="flex items-center justify-between">
+                <CalendarDays className="text-indigo-600" />
+                <Status value={interview.status} />
+              </div>
+              <h2 className="mt-5 text-xl font-bold text-slate-900">
+                {interview.application.candidate.user.name}
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                {interview.application.job.title}
               </p>
-              <p className="text-2xl font-bold text-slate-900">
-                {interviews.length}
+              <p className="mt-4 font-semibold text-slate-800">
+                {dateTime(interview.scheduledAt)}
               </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Interview List */}
-        {interviews.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
-            <CalendarCheck
-              size={42}
-              className="mx-auto mb-4 text-slate-400"
-            />
-            <h2 className="text-lg font-semibold text-slate-800">
-              No interviews scheduled
-            </h2>
-            <p className="mt-2 text-sm text-slate-500">
-              Your scheduled interviews will appear here.
-            </p>
-          </div>
-        ) : (
-          <div className="grid gap-5 md:grid-cols-2">
-            {interviews.map((interview) => {
-              const application = interview.application;
-              const job = application.job;
-              const candidate = application.candidate;
-              const scheduledDate = new Date(
-                interview.scheduledAt
-              );
-
-              return (
-                <div
-                  key={interview.id}
-                  className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md"
-                >
-                  {/* Candidate */}
-                  <div className="mb-5 flex items-start justify-between gap-3">
-                    <div>
-                      <h2 className="text-lg font-bold text-slate-900">
-                        {candidate.user.name}
-                      </h2>
-                      <p className="mt-1 text-sm text-slate-500">
-                        {candidate.user.email}
-                      </p>
-                      <p className="mt-2 text-sm font-medium text-blue-600">
-                        {candidate.title || "Candidate"}
-                      </p>
-                    </div>
-
-                    <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                      {interview.status}
-                    </span>
-                  </div>
-
-                  <div className="space-y-3 border-t border-slate-100 pt-5">
-                    {/* Job */}
-                    <div className="flex items-start gap-3">
-                      <Briefcase
-                        size={18}
-                        className="mt-0.5 text-slate-400"
-                      />
-                      <div>
-                        <p className="font-semibold text-slate-800">
-                          {job.title}
-                        </p>
-                        <p className="text-sm text-slate-500">
-                          {job.companyName}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Location */}
-                    <div className="flex items-center gap-3 text-sm text-slate-600">
-                      <MapPin size={18} className="text-slate-400" />
-                      {job.location}
-                    </div>
-
-                    {/* Date */}
-                    <div className="flex items-start gap-3 text-sm text-slate-600">
-                      <Clock size={18} className="mt-0.5 text-slate-400" />
-                      <div>
-                        <p>
-                          {scheduledDate.toLocaleDateString("en-IN", {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                          })}
-                        </p>
-                        <p>
-                          {scheduledDate.toLocaleTimeString("en-IN", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            timeZone: "Asia/Kolkata",
-                          })} IST
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Notes */}
-                    {interview.notes && (
-                      <div className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
-                        <span className="font-semibold text-slate-800">
-                          Notes:{" "}
-                        </span>
-                        {interview.notes}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Meeting Link */}
-                  {interview.meetingLink && (
-                    <a
-                      href={interview.meetingLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700"
-                    >
-                      Join Interview
-                      <ExternalLink size={17} />
-                    </a>
-                  )}
+              {interview.notes && (
+                <div className="mt-4 rounded-xl bg-slate-50 p-4">
+                  <p className="text-xs font-semibold text-slate-400">
+                    INTERNAL NOTES
+                  </p>
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">
+                    {interview.notes}
+                  </p>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    </div>
+              )}
+              <div className="mt-5 flex flex-wrap gap-3">
+                {interview.meetingLink && interview.status === "SCHEDULED" && (
+                  <a
+                    href={interview.meetingLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={buttonClass}
+                  >
+                    Join meeting <ArrowUpRight size={15} />
+                  </a>
+                )}
+                <Link
+                  href={"/recruiter/candidates/" + interview.applicationId}
+                  className={secondaryClass}
+                >
+                  View / reschedule
+                </Link>
+                {interview.status === "SCHEDULED" && (
+                  <>
+                    <button
+                      className={secondaryClass}
+                      disabled={change.isPending}
+                      onClick={() =>
+                        change.mutate({ id: interview.id, status: "COMPLETED" })
+                      }
+                    >
+                      Mark completed
+                    </button>
+                    <button
+                      className="px-3 py-2 text-sm font-semibold text-rose-600"
+                      disabled={change.isPending}
+                      onClick={() =>
+                        change.mutate({ id: interview.id, status: "CANCELLED" })
+                      }
+                    >
+                      Cancel interview
+                    </button>
+                  </>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </Page>
   );
 }

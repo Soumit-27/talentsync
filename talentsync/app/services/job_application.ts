@@ -1,4 +1,4 @@
-import { getRequest, postRequest } from "./api";
+import { getRequest, postRequest, patchRequest } from "./api";
 
 /* ===========================
    APPLICATION TYPES
@@ -39,7 +39,7 @@ export interface CandidateProfile {
   resumeUrl?: string | null;
   imageUrl?: string | null;
 
-    createdAt: string;
+  createdAt: string;
   updatedAt: string;
 
   user?: {
@@ -61,6 +61,13 @@ export interface Application {
   job: AppliedJob;
 
   candidate?: CandidateProfile;
+  interview?: {
+    id: string;
+    scheduledAt: string;
+    meetingLink: string | null;
+    status: string;
+    notes?: string | null;
+  } | null;
 }
 
 /* ===========================
@@ -113,3 +120,25 @@ export const getRecruiterApplications =
       "/api/applications/recruiter",
     );
   };
+
+export const APPLICATION_STATUSES = [
+  "APPLIED",
+  "SCREENING",
+  "SHORTLISTED",
+  "INTERVIEW",
+  "HIRED",
+  "REJECTED",
+] as const;
+export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
+export const updateApplicationStatus = (
+  id: string,
+  status: ApplicationStatus,
+) =>
+  patchRequest<{ success: boolean; data: Application }>(
+    `/api/applications/${id}/status`,
+    { status },
+  );
+export const getApplication = (id: string) =>
+  getRequest<{ success: boolean; data: Application }>(
+    `/api/applications/${id}`,
+  );

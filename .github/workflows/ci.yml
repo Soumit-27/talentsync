@@ -1,63 +1,69 @@
-
 name: TalentSync CI
-
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
-
 jobs:
   frontend:
-    name: Frontend CI
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: talentsync
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: talentsync/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run ESLint
-        run: npm run lint
-
-      - name: Build frontend
-        run: npm run build
-
-  backend:
-    name: Backend CI
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+  journeys:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
-
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
       DATABASE_URL: postgresql://ci:ci@localhost:5432/ci?schema=public
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: backend/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build backend
-        run: npm run build
+          cache-dependency-path: |
+            backend/package-lock.json
+            talentsync/package-lock.json
+      - run: npm ci
+        working-directory: backend
+      - run: npm run build
+        working-directory: backend
+      - run: npm test
+        working-directory: backend
+      - run: npm ci
+        working-directory: talentsync
+      - run: npx playwright install --with-deps chromium
+        working-directory: talentsync
+      - run: npm run test:e2e
+        working-directory: talentsync
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-test-results
+          path: |
+            talentsync/test-results
+            talentsync/test-artifacts
+          retention-days: 7

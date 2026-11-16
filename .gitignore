@@ -24,3 +24,12 @@ talentsync/out/
 # OS
 .DS_Store
 Thumbs.db
+# Deployment secrets and browser artifacts
+.env
+.env.local
+!.env.example
+!talentsync/.env.example
+talentsync/.next-e2e/
+talentsync/test-artifacts/
+talentsync/test-results/
+talentsync/playwright-report/

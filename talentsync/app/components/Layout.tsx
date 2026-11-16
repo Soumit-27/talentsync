@@ -1,24 +1,24 @@
 "use client";
-
 import { usePathname } from "next/navigation";
 import Sidebar from "./Sidebar";
-
-export default function Layout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+import ProtectedRoute from "./ProtectedRoute";
+const publicRoutes = new Set([
+  "/",
+  "/auth/login",
+  "/auth/register",
+  "/forgot_password",
+  "/reset-password",
+  "/jobs",
+]);
+export default function Layout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-
-  const hideSidebar =
-    pathname === "/" ||
-    pathname === "/auth/login" ||
-    pathname === "/auth/register";
-
+  if (publicRoutes.has(pathname)) return <>{children}</>;
   return (
-    <div className="flex min-h-screen">
-      {!hideSidebar && <Sidebar />}
-      <main className="flex-1 bg-slate-100">{children}</main>
-    </div>
+    <ProtectedRoute>
+      <div className="min-h-screen bg-slate-50 lg:flex">
+        <Sidebar />
+        <main className="min-w-0 flex-1">{children}</main>
+      </div>
+    </ProtectedRoute>
   );
 }
