@@ -21,7 +21,7 @@ Inspect startup with docker compose -f compose.production.yaml logs. The backend
 
 ## Other hosting providers
 
-Deploy backend and frontend as separate Node.js services. Backend needs DATABASE_URL, JWT_SECRET, FRONTEND_URL (the exact public HTTPS frontend origin), NODE_ENV=production, and upload/email credentials. Run npm run db:deploy before npm start. Set TRUST_PROXY=1 only when one trusted proxy sits directly before Express; otherwise configure your platform ingress appropriately.
+Deploy backend and frontend as separate Node.js services. Backend needs DATABASE_URL, JWT_SECRET, FRONTEND_URL (the exact public HTTPS frontend origin), NODE_ENV=production, and upload/email credentials. Run npm start; it applies pending Prisma migrations before starting the API and stops if migration fails. On Render, set the root directory to backend, the build command to npm ci --include=dev && npm run build, and the start command to npm start. Ensure DATABASE_URL points to the intended production database. Set TRUST_PROXY=1 only when one trusted proxy sits directly before Express; otherwise configure your platform ingress appropriately.
 
 Set frontend API_URL to the backend origin before npm run build and leave NEXT_PUBLIC_API_URL empty. Rewrites are compiled during build, so rebuild when API_URL changes. Use the frontend domain for browser API requests. Direct cross-site API deployments may encounter third-party cookie restrictions; use the same-origin proxy to avoid that dependency.
 
