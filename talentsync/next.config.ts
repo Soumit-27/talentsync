@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
       {
         source: "/api/:path*",
         destination:
-          (process.env.API_URL || "http://localhost:5000").replace(/\/$/, "") +
+          (process.env.API_URL || (process.env.NODE_ENV === "production" ? "https://talentsync-backend-ujn6.onrender.com" : "http://localhost:5000")).replace(/\/$/, "") +
           "/api/:path*",
       },
     ];

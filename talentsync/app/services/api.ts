@@ -1,6 +1,6 @@
 import axios from "axios";
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "",
+  baseURL: "", // Keep session cookies on the frontend origin through the /api proxy.
   withCredentials: true,
   timeout: 20000,
 });
